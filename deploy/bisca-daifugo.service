@@ -1,0 +1,18 @@
+# Example systemd unit for the Bisca Daifugō server.
+# Copy to /etc/systemd/system/, adjust paths/user, then:
+#   systemctl daemon-reload && systemctl enable --now bisca-daifugo
+[Unit]
+Description=Bisca Daifugō (大富豪) server, port 8079
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/bisca/daifugo
+ExecStart=/usr/bin/node /opt/bisca/daifugo/server.cjs
+Restart=always
+RestartSec=3
+# User=games
+# Environment=PORT=8079
+# Environment=BISCA_PASSWORD=change-me
+
+[Install]
+WantedBy=multi-user.target

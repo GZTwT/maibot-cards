@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- iOS 18.0.x standalone bug 绕开：必须 black，绝不用 black-translucent -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>大富翁 · 房间</title>
+  <!-- 主题地基：boot.js 必须在任何样式之前同步跑，首屏防闪 -->
+  <script src="/assets-theme/boot.js"></script>
+  <script src="/assets-theme/icons.js"></script>
+  <link rel="stylesheet" href="/assets-theme/base.css">
+  <link rel="stylesheet" href="monopoly.css">
+</head>
+<body class="mono-room">
+  <div class="cn-aurora"></div>
+
+  <header class="mono-top">
+    <div class="mono-top-row">
+      <a class="mono-back" id="r-back" href="/monopoly/" aria-label="回大厅"></a>
+      <div class="mono-title">
+        <div class="nm" id="r-name">房间</div>
+        <div class="cd" id="r-code"></div>
+      </div>
+      <div class="mono-link" id="r-conn" data-conn="retry"><span class="dot"></span><span class="tx">连接中</span></div>
+    </div>
+    <div class="mono-players" id="r-players"></div>
+  </header>
+
+  <div class="mono-alert" id="r-alert" hidden></div>
+
+  <main class="mono-shell">
+    <div class="mono-stage" id="r-stage">
+      <div class="mono-canvas" id="r-canvas">
+        <div class="mono-board" id="r-board" hidden></div>
+      </div>
+    </div>
+    <div class="mono-wait" id="r-wait" hidden></div>
+    <div class="mono-zoom" id="r-zoom" hidden>
+      <button type="button" id="zoom-in" aria-label="放大">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5.5v13"/><path d="M5.5 12h13"/></svg>
+      </button>
+      <button type="button" id="zoom-out" aria-label="缩小">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5.5 12h13"/></svg>
+      </button>
+      <button type="button" id="zoom-fit" aria-label="复位">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5H4.5V9"/><path d="M15 4.5h4.5V9"/><path d="M9 19.5H4.5V15"/><path d="M15 19.5h4.5V15"/></svg>
+      </button>
+    </div>
+  </main>
+
+  <footer class="mono-actions" id="r-actions"></footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/rules.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/room.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Example systemd unit for the Bisca Monopoly-style board game server.
+# Copy to /etc/systemd/system/, adjust paths/user, then:
+#   systemctl daemon-reload && systemctl enable --now bisca-monopoly
+[Unit]
+Description=Bisca Monopoly-style board game server, port 8078
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/bisca/monopoly
+ExecStart=/usr/bin/node /opt/bisca/monopoly/server.cjs
+Restart=always
+RestartSec=3
+# User=games
+# Environment=PORT=8078
+# Environment=BISCA_PASSWORD=change-me
+
+[Install]
+WantedBy=multi-user.target

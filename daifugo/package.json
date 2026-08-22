@@ -1,0 +1,14 @@
+{
+  "name": "@bisca/daifugo",
+  "version": "1.0.0",
+  "description": "大富豪 (Daifugō) —— 自托管的多人在线大富豪牌桌，2~4 人，可选规则开关，支持 AI 牌友与外接 agent。",
+  "license": "CC-BY-4.0",
+  "main": "server.cjs",
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "express": "^4.19.0"
+  }
+}

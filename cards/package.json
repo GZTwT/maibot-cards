@@ -1,0 +1,14 @@
+{
+  "name": "@bisca/cards",
+  "version": "1.0.0",
+  "description": "自托管棋牌室：斗地主 / 炸金花 / UNO 三合一，带 AI 座位与外接 agent 通道",
+  "license": "CC-BY-4.0",
+  "main": "server.cjs",
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "express": "^4.19.0"
+  }
+}

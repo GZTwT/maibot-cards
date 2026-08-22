@@ -1,0 +1,12 @@
+{
+  "_readme": "大富翁全局配置（热读，改完存盘即生效，只影响之后开的新局）。allow_guests=true 才允许没登录的朋友凭邀请链接进房（开它等于放宽认证边界，公网部署前想清楚）。startCash=起始现金 salary=过起点工资 bail=保释金 luxury_tax=奢侈税金额 maxHouses=每格最多几档房(5=旅馆) jailMaxTurns=坐牢几回合后强制交保 railRents=拥1~4条铁路的租金 utilMultipliers=拥1/2个公用事业时的骰点倍数。另外服务会自己往这里写一个 cookie_secret（登录 cookie 的签名密钥，首次启动随机生成），别删也别外传。",
+  "allow_guests": false,
+  "startCash": 15000,
+  "salary": 2000,
+  "bail": 500,
+  "luxury_tax": 1000,
+  "maxHouses": 5,
+  "jailMaxTurns": 3,
+  "railRents": [250, 500, 1000, 2000],
+  "utilMultipliers": [40, 100]
+}

@@ -1,0 +1,479 @@
+/* Bisca 大富翁 —— 大厅 + 房间共享样式
+ * 地基是 /assets-theme 三件套（boot.js 注入 oklch token、base.css 出 .cn-aurora/.cn-card/.cn-glass）。
+ * 这里只写本项目自己的件；颜色一律走 token，唯二例外是「数据色」：
+ *   ① 棋盘 8 个色组的固定色相（oklch 直写，见 .mono-cell[data-group]）
+ *   ② 玩家棋子色（后端下发的 hex，写在 style 属性里）
+ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* 本页大量用 hidden 属性开关面板，这些面板自身是 flex/grid，得压过去 */
+[hidden] { display: none !important; }
+
+body {
+  color: var(--text);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, select {
+  font: inherit;
+  color: var(--text-strong);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 10px 12px;
+  width: 100%;
+  outline: none;
+}
+input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-wash); }
+input::placeholder { color: var(--text-faint); }
+
+/* ═════════ 通用小件 ═════════ */
+
+.mono-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 44px; padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 14px; font-weight: 600;
+  white-space: nowrap;
+  transition: transform .12s ease, opacity .15s ease, background .15s ease;
+}
+.mono-btn:active { transform: scale(.97); }
+.mono-btn[disabled] { opacity: .38; pointer-events: none; }
+.mono-btn .ic { display: flex; }
+
+.mono-btn--primary {
+  background: var(--accent-grad);
+  color: var(--accent-on);
+  border-color: transparent;
+  box-shadow: var(--glow-shadow);
+}
+.mono-btn--ghost { background: transparent; color: var(--text-mute); }
+.mono-btn--danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+.mono-btn--sm { min-height: 34px; padding: 0 12px; font-size: 12px; border-radius: 11px; }
+
+.mono-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+
+.mono-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  display: inline-block; flex: none;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .35) inset;
+}
+
+/* toast —— 后端 400 的中文错误直接扔这儿 */
+.mono-toasts {
+  position: fixed; left: 0; right: 0; top: 14px; z-index: 9500;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  pointer-events: none; padding: 0 16px;
+}
+.mono-toast {
+  max-width: 440px;
+  padding: 10px 15px; border-radius: 14px;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 8px 30px rgb(0 0 0 / .34);
+  color: var(--text-strong); font-size: 13px; line-height: 1.5;
+  animation: monoToastIn .22s ease both;
+}
+.mono-toast.is-bad { border-color: var(--danger); color: var(--danger); }
+.mono-toast.is-out { animation: monoToastOut .2s ease both; }
+@keyframes monoToastIn { from { opacity: 0; transform: translateY(-10px); } }
+@keyframes monoToastOut { to { opacity: 0; transform: translateY(-8px); } }
+
+/* 通用遮罩层 */
+.mono-scrim {
+  position: fixed; inset: 0; z-index: 9200;
+  background: var(--scrim, rgb(0 0 0 / .55));
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  animation: monoFade .2s ease both;
+}
+@keyframes monoFade { from { opacity: 0; } }
+
+.mono-modal {
+  width: 100%; max-width: 380px;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 14px 40px rgb(0 0 0 / .45);
+  border-radius: 22px; padding: 18px;
+  max-height: 84dvh; overflow-y: auto;
+  animation: monoPop .24s cubic-bezier(.2, .9, .3, 1.2) both;
+}
+@keyframes monoPop { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+.mono-modal h2 { font-size: 17px; font-weight: 700; color: var(--text-strong); }
+.mono-modal .sub { font-size: 12.5px; color: var(--text-dim); margin-top: 5px; line-height: 1.6; }
+
+/* 色板 */
+.mono-swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.mono-sw {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--border-soft);
+  position: relative;
+  transition: transform .14s ease;
+}
+.mono-sw:active { transform: scale(.92); }
+.mono-sw.is-on { border-color: var(--text-strong); box-shadow: 0 0 0 1px var(--border-soft), 0 0 12px var(--accent-wash); }
+.mono-sw.is-taken { opacity: .25; pointer-events: none; }
+
+.mono-field { display: flex; flex-direction: column; gap: 7px; }
+.mono-field > .k { font-size: 12px; color: var(--text-mute); font-weight: 600; }
+
+/* ═════════ 大厅 ═════════ */
+
+.lobby { max-width: 520px; margin: 0 auto; padding: 16px 16px 28px; display: flex; flex-direction: column; gap: 16px; }
+
+.lb-head { text-align: center; padding: 8px 0 2px; }
+.lb-head h1 { font-size: 26px; font-weight: 800; color: var(--text-strong); letter-spacing: -.01em; }
+.lb-head p { font-size: 12.5px; color: var(--text-dim); margin-top: 6px; }
+
+.lb-card { padding: 16px 17px; display: flex; flex-direction: column; gap: 13px; }
+.lb-card .hd { display: flex; align-items: center; gap: 9px; color: var(--text-strong); font-size: 15px; font-weight: 700; }
+.lb-card .hd .ic { color: var(--accent); display: flex; }
+
+.lb-rooms { display: flex; flex-direction: column; gap: 10px; }
+.lb-sec { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; }
+
+.room-card { padding: 14px 15px; display: flex; align-items: center; gap: 12px; transition: transform .14s ease; }
+.room-card:active { transform: scale(.985); }
+.room-card .main { flex: 1; min-width: 0; }
+.room-card .nm { font-size: 15px; font-weight: 700; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-card .sub { font-size: 11.5px; color: var(--text-dim); margin-top: 4px; display: flex; align-items: center; gap: 7px; }
+.room-card .avatars { display: flex; gap: 4px; margin-top: 8px; }
+.room-card .chev { color: var(--text-faint); display: flex; }
+
+.mono-tag {
+  font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 99px;
+  border: 1px solid var(--border-soft); color: var(--text-mute); background: var(--surface-2);
+}
+.mono-tag.is-open { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+.mono-tag.is-live { color: var(--ink); border-color: var(--ink); background: var(--ink-wash); }
+.mono-tag.is-done { color: var(--text-faint); }
+
+.lb-empty { text-align: center; color: var(--text-faint); font-size: 13px; padding: 26px 0; }
+
+/* ═════════ 房间外壳 ═════════ */
+
+body.mono-room {
+  height: 100dvh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* status-bar=black 时 iOS standalone 已经把视口压到状态栏下方，这里不再自己垫 safe-area */
+.mono-top { flex: none; padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 9px; }
+.mono-top-row { display: flex; align-items: center; gap: 10px; }
+.mono-back { display: flex; color: var(--text-mute); padding: 4px; margin: -4px; }
+.mono-title { flex: 1; min-width: 0; }
+.mono-title .nm { font-size: 14.5px; font-weight: 700; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mono-title .cd { font-size: 10.5px; color: var(--text-faint); letter-spacing: .12em; margin-top: 1px; }
+.mono-link { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-dim); }
+.mono-link .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 7px var(--ink); }
+.mono-link[data-conn="retry"] .dot, .mono-link[data-conn="polling"] .dot { background: var(--danger); box-shadow: 0 0 7px var(--danger); }
+
+/* 玩家栏 */
+.mono-players { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.mono-players::-webkit-scrollbar { display: none; }
+.pl-card {
+  flex: none; min-width: 96px;
+  padding: 8px 10px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.pl-card .top { display: flex; align-items: center; gap: 6px; }
+.pl-card .nm { font-size: 12px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-card .cash { font-size: 13px; font-weight: 700; color: var(--text-strong); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.pl-card .tail { font-size: 10px; color: var(--text-faint); margin-top: 2px; display: flex; gap: 5px; }
+.pl-card.is-turn { border-color: var(--accent-line); box-shadow: var(--glow-shadow); background: var(--accent-wash); }
+.pl-card.is-out { opacity: .38; }
+.pl-card.is-me .nm::after { content: '（我）'; color: var(--text-faint); font-weight: 500; }
+
+/* 欠款警示条 */
+.mono-alert {
+  flex: none; margin: 0 12px 8px; padding: 9px 13px; border-radius: 14px;
+  border: 1px solid var(--danger); color: var(--danger);
+  font-size: 12.5px; line-height: 1.5;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  animation: monoPulse 1.6s ease-in-out infinite;
+}
+@keyframes monoPulse { 50% { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .mono-alert { animation: none; } }
+
+/* ═════════ 舞台 / 缩放视口 ═════════ */
+
+/* shell 是定位容器：舞台/等人面板/缩放按钮都是它的兄弟层，
+ * 缩放按钮不放进舞台，免得被 setPointerCapture 抢走 click */
+.mono-shell { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+.mono-stage { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
+.mono-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+
+.mono-zoom {
+  position: absolute; right: 10px; top: 8px; z-index: 5;
+  display: flex; gap: 6px;
+}
+.mono-zoom button {
+  width: 36px; height: 36px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  border: 1px solid var(--glow-border); color: var(--text-mute);
+}
+
+/* ═════════ 棋盘 ═════════ */
+
+.mono-board {
+  --mono-size: 820px;
+  position: relative;
+  width: var(--mono-size); height: var(--mono-size);
+  display: grid;
+  grid-template-columns: 1.45fr repeat(9, 1fr) 1.45fr;
+  grid-template-rows: 1.45fr repeat(9, 1fr) 1.45fr;
+  gap: 3px;
+  padding: 8px;
+  border-radius: 24px;
+  background: var(--surface);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 18px 50px rgb(0 0 0 / .4);
+}
+
+.mono-cell {
+  position: relative;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-faint);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  padding: 0 3px 3px;
+  transition: box-shadow .25s ease, border-color .25s ease;
+}
+.mono-cell.is-corner { background: var(--surface-3); border-radius: 12px; }
+.mono-cell.is-here { border-color: var(--accent); box-shadow: 0 0 14px var(--accent-wash), inset 0 0 18px var(--accent-wash); }
+.mono-cell.is-pick { border-color: var(--ink); box-shadow: 0 0 14px var(--ink-wash); }
+
+/* 组色条（数据色：8 个固定色相，oklch 直写不算硬编码） */
+.mono-cell .cbar { display: block; height: 7px; margin: 0 -3px 4px; background: var(--grp, transparent); flex: none; }
+[data-group="g1"] { --grp: oklch(.55 .09 55); }
+[data-group="g2"] { --grp: oklch(.78 .10 225); }
+[data-group="g3"] { --grp: oklch(.70 .15 350); }
+[data-group="g4"] { --grp: oklch(.72 .16 55); }
+[data-group="g5"] { --grp: oklch(.62 .20 25); }
+[data-group="g6"] { --grp: oklch(.85 .15 95); }
+[data-group="g7"] { --grp: oklch(.62 .15 150); }
+[data-group="g8"] { --grp: oklch(.52 .16 265); }
+/* 奢侈税：不给它色组，给它 accent + 一枚线框皇冠 */
+[data-type="luxury_tax"] { --grp: var(--accent); }
+.mono-cell[data-type="luxury_tax"] { border-color: var(--accent-line); }
+.mono-cell[data-type="luxury_tax"] .cname { color: var(--accent); }
+
+.mono-cell .cname {
+  font-size: 9px; line-height: 1.25; font-weight: 700; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; word-break: break-all;
+}
+.mono-cell.is-corner .cname { font-size: 11px; -webkit-line-clamp: 3; }
+.mono-cell .cname .crown { display: inline-block; vertical-align: -2px; color: var(--accent); }
+.mono-cell .cico { display: flex; justify-content: center; color: var(--text-faint); padding: 2px 0; }
+.mono-cell[data-type="luxury_tax"] .cico { color: var(--accent); }
+.mono-cell .cprice { font-size: 8.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; margin-top: auto; }
+.mono-cell .cown { position: absolute; right: 3px; bottom: 3px; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / .4) inset, 0 0 6px currentColor; }
+
+/* 房子指示：1-4 个小方块，第 5 栋 = 一枚菱形旅馆 */
+.mono-cell .chouses { position: absolute; left: 3px; top: 9px; display: flex; gap: 2px; }
+.mono-cell .chouses i { width: 5px; height: 5px; border-radius: 1.5px; background: var(--ink); box-shadow: 0 0 4px var(--ink); }
+.mono-cell .chouses i.hotel { width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+/* 棋子层（绝对定位 → left/top 过渡即滑动） */
+.mono-tokens { position: absolute; inset: 0; pointer-events: none; }
+.mono-token {
+  position: absolute; width: 15px; height: 15px; border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 8px currentColor, 0 2px 5px rgb(0 0 0 / .5);
+  transition: left .45s cubic-bezier(.35, .9, .35, 1), top .45s cubic-bezier(.35, .9, .35, 1);
+}
+.mono-token.is-turn { outline: 2px solid var(--text-strong); outline-offset: 1px; }
+.mono-token.is-out { opacity: .25; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .mono-token { transition: none; } }
+
+/* ═════════ 中央区 ═════════ */
+
+.mono-center {
+  grid-row: 2 / 11; grid-column: 2 / 11;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-faint);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 18px 16px; gap: 14px; overflow: hidden;
+}
+.cc-turn { font-size: 13px; color: var(--text-mute); text-align: center; }
+.cc-turn b { color: var(--text-strong); }
+.cc-phase { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
+
+.cc-dice { display: flex; gap: 14px; }
+.mono-die {
+  width: 44px; height: 44px; border-radius: 10px;
+  background: var(--surface-3); border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 var(--border-soft), 0 4px 12px rgb(0 0 0 / .35);
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+  padding: 6px;
+}
+.mono-die .pip { width: 6px; height: 6px; border-radius: 50%; background: var(--text-strong); opacity: 0; place-self: center; }
+.mono-die[data-v="1"] .pip:nth-child(5) { opacity: 1; }
+.mono-die[data-v="2"] .pip:nth-child(1), .mono-die[data-v="2"] .pip:nth-child(9) { opacity: 1; }
+.mono-die[data-v="3"] .pip:nth-child(1), .mono-die[data-v="3"] .pip:nth-child(5), .mono-die[data-v="3"] .pip:nth-child(9) { opacity: 1; }
+.mono-die[data-v="4"] .pip:nth-child(1), .mono-die[data-v="4"] .pip:nth-child(3),
+.mono-die[data-v="4"] .pip:nth-child(7), .mono-die[data-v="4"] .pip:nth-child(9) { opacity: 1; }
+.mono-die[data-v="5"] .pip:nth-child(1), .mono-die[data-v="5"] .pip:nth-child(3), .mono-die[data-v="5"] .pip:nth-child(5),
+.mono-die[data-v="5"] .pip:nth-child(7), .mono-die[data-v="5"] .pip:nth-child(9) { opacity: 1; }
+.mono-die[data-v="6"] .pip:nth-child(1), .mono-die[data-v="6"] .pip:nth-child(3), .mono-die[data-v="6"] .pip:nth-child(4),
+.mono-die[data-v="6"] .pip:nth-child(6), .mono-die[data-v="6"] .pip:nth-child(7), .mono-die[data-v="6"] .pip:nth-child(9) { opacity: 1; }
+.mono-die.is-rolling { animation: monoDie .8s cubic-bezier(.3, .7, .4, 1) both; }
+@keyframes monoDie {
+  0%   { transform: rotate(0) translateY(0) scale(1); }
+  25%  { transform: rotate(-22deg) translateY(-14px) scale(1.08); }
+  50%  { transform: rotate(18deg) translateY(-4px) scale(1.04); }
+  75%  { transform: rotate(-9deg) translateY(-8px) scale(1.05); }
+  100% { transform: rotate(0) translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) { .mono-die.is-rolling { animation: none; } }
+
+.cc-log { flex: 1; min-height: 0; width: 100%; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 5px; }
+.cc-log .row {
+  font-size: 11px; line-height: 1.45; color: var(--text-dim);
+  padding: 4px 9px; border-radius: 9px; background: var(--surface-2);
+  animation: monoLogIn .28s ease both;
+}
+.cc-log .row:last-child { color: var(--text-strong); background: var(--accent-wash); }
+@keyframes monoLogIn { from { opacity: 0; transform: translateY(6px); } }
+
+/* ═════════ 等人中（未开局）面板 ═════════ */
+
+.mono-wait { position: absolute; inset: 0; z-index: 4; touch-action: auto; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+.mono-wait .box { width: 100%; max-width: 360px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.mono-wait h2 { font-size: 18px; font-weight: 700; color: var(--text-strong); }
+.mono-wait .sub { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; }
+.mono-seatlist { display: flex; flex-direction: column; gap: 8px; }
+.mono-seat { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border-faint); }
+.mono-seat .nm { flex: 1; font-size: 13px; color: var(--text); font-weight: 600; }
+.mono-seat .role { font-size: 10.5px; color: var(--text-faint); }
+
+/* ═════════ 操作条 ═════════ */
+
+.mono-actions {
+  flex: none;
+  padding: 10px 12px 22px;   /* 底部不写 env(safe-area-inset-bottom)（iOS PWA 铁律），靠内边距留白 */
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border-top: 1px solid var(--glow-border);
+  display: flex; align-items: center; gap: 8px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.mono-actions::-webkit-scrollbar { display: none; }
+.mono-actions .mono-btn { flex: none; }
+.mono-hint { font-size: 13px; color: var(--text-mute); padding: 0 4px; display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.mono-hint b { color: var(--text-strong); }
+.mono-watch {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 14px; border-radius: 99px;
+  border: 1px solid var(--accent-line); background: var(--accent-wash); color: var(--accent);
+  font-size: 12.5px; font-weight: 700;
+}
+
+/* ═════════ 格子详情 popover ═════════ */
+
+.mono-pop { max-width: 320px; }
+.mono-pop .ptop { display: flex; align-items: center; gap: 9px; }
+.mono-pop .pbar { width: 5px; height: 30px; border-radius: 99px; background: var(--grp, var(--border)); flex: none; }
+.mono-pop .pnm { font-size: 16px; font-weight: 700; color: var(--text-strong); }
+.mono-pop .ptype { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+.mono-pop .prow { display: flex; justify-content: space-between; font-size: 12.5px; padding: 5px 0; border-bottom: 1px solid var(--border-faint); }
+.mono-pop .prow .k { color: var(--text-mute); }
+.mono-pop .prow .v { color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.mono-pop .prow.is-on { color: var(--accent); }
+.mono-pop .prow.is-on .k, .mono-pop .prow.is-on .v { color: var(--accent); }
+.mono-pop .pacts { display: flex; gap: 8px; margin-top: 4px; }
+.mono-pop .pacts .mono-btn { flex: 1; }
+
+/* ═════════ 卡牌 ═════════ */
+
+/* 卡牌自己就是一张「牌」，别再套一层 modal 玻璃框 */
+.mono-modal.mono-card-wrap {
+  perspective: 1200px; width: 100%; max-width: 320px;
+  background: none; border: none; box-shadow: none; padding: 0; overflow: visible;
+  -webkit-backdrop-filter: none; backdrop-filter: none; animation: none;
+}
+.mono-card {
+  border-radius: 20px; padding: 22px 20px;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--accent-line);
+  box-shadow: var(--glow-shadow), 0 18px 50px rgb(0 0 0 / .5);
+  text-align: center;
+  animation: monoFlip .7s cubic-bezier(.2, .8, .3, 1) both;
+  transform-style: preserve-3d;
+}
+@keyframes monoFlip {
+  0%   { transform: rotateY(-95deg) scale(.85); opacity: 0; }
+  60%  { transform: rotateY(12deg) scale(1.02); opacity: 1; }
+  100% { transform: rotateY(0) scale(1); opacity: 1; }
+}
+.mono-card .deck { color: var(--accent); display: flex; justify-content: center; margin-bottom: 8px; }
+.mono-card .dname { font-size: 11px; letter-spacing: .3em; color: var(--accent); font-weight: 700; }
+.mono-card .txt { font-size: 15px; line-height: 1.7; color: var(--text-strong); margin: 16px 0 20px; }
+.mono-card .who { font-size: 12px; color: var(--text-dim); }
+
+/* ═════════ 胜利屏 ═════════ */
+
+.mono-win { position: fixed; inset: 0; z-index: 9400; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: var(--scrim, rgb(0 0 0 / .7)); overflow: hidden; }
+.mono-win .crown { color: var(--accent); filter: drop-shadow(0 0 18px var(--accent-wash)); animation: monoRise .6s ease both; }
+.mono-win .big { font-size: 28px; font-weight: 800; color: var(--text-strong); animation: monoRise .6s .1s ease both; }
+.mono-win .sub { font-size: 13px; color: var(--text-dim); animation: monoRise .6s .2s ease both; }
+.mono-win .mono-btn { animation: monoRise .6s .3s ease both; z-index: 2; }
+@keyframes monoRise { from { opacity: 0; transform: translateY(18px); } }
+.mono-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.mono-confetti i {
+  position: absolute; top: -6vh; width: 8px; height: 13px; border-radius: 2px;
+  animation: monoFall linear infinite;
+}
+@keyframes monoFall {
+  0%   { transform: translateY(-10vh) rotate(0) ; opacity: 0; }
+  8%   { opacity: 1; }
+  100% { transform: translateY(112vh) rotate(760deg); opacity: .9; }
+}
+@media (prefers-reduced-motion: reduce) { .mono-confetti { display: none; } }
+
+/* ═════════ 盖房选格小抽屉 ═════════ */
+
+.mono-pick { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow-y: auto; }
+.mono-pick .row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 13px; background: var(--surface-2); border: 1px solid var(--border-faint); }
+.mono-pick .row .nm { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); }
+.mono-pick .row .cost { font-size: 12px; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+
+/* 桌面稍微放宽 */
+@media (min-width: 900px) {
+  .mono-top { padding-left: 20px; padding-right: 20px; }
+  .mono-actions { padding-left: 20px; padding-right: 20px; justify-content: center; }
+}

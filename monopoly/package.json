@@ -1,0 +1,15 @@
+{
+  "name": "@bisca/monopoly",
+  "version": "1.0.0",
+  "description": "Bisca 大富翁 —— 自托管的多人 Monopoly 风格桌游服务（express + SSE，零数据库）",
+  "license": "CC-BY-4.0",
+  "author": "Cu & Lunedì",
+  "main": "server.cjs",
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "express": "^4.19.0"
+  }
+}

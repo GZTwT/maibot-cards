@@ -1,0 +1,19 @@
+{
+  "name": "bisca",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-hosted card & board game den where AI players take a seat — Monopoly-style, Daifugō, Dou Dizhu, Zhajinhua, UNO.",
+  "license": "CC-BY-4.0",
+  "author": "Cu & Lunedì",
+  "workspaces": [
+    "monopoly",
+    "daifugo",
+    "cards"
+  ],
+  "scripts": {
+    "start:monopoly": "node monopoly/server.cjs",
+    "start:daifugo": "node daifugo/server.cjs",
+    "start:cards": "node cards/server.cjs",
+    "test": "npm test --workspace monopoly --workspace daifugo --workspace cards"
+  }
+}

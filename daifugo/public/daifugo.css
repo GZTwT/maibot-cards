@@ -1,0 +1,759 @@
+/* 大富豪 —— 大厅 + 牌桌共享样式
+ * 地基是 /assets-theme 三件套（boot.js 注入 oklch token、base.css 出 .cn-aurora/.cn-card/.cn-glass）。
+ * 这里只写本项目自己的件。**没有任何裸色值**：牌面红黑也吃主题层
+ * （红花色 = --danger，黑花色 = --text-strong，王 = --accent），换主题/亮暗自动跟。
+ * 手机优先：一切按 375px 排，宽屏只是把边距放开。
+ */
+
+:root {
+  /* 语义别名，全部指回主题 token —— 想改牌面观感只动这五行 */
+  --df-face: var(--surface-3);
+  --df-face-line: var(--border-soft);
+  --df-red: var(--danger);
+  --df-black: var(--text-strong);
+  --df-joker: var(--accent);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* 本页大量用 hidden 属性开关面板，这些面板自身是 flex/grid，得压过去 */
+[hidden] { display: none !important; }
+
+body {
+  color: var(--text);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  font: inherit; color: inherit; background: none; border: none;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+
+input {
+  font: inherit; color: var(--text-strong);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px; padding: 10px 12px; width: 100%; outline: none;
+}
+input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-wash); }
+input::placeholder { color: var(--text-faint); }
+
+/* ═════════ 通用小件 ═════════ */
+
+.df-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 46px; padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 15px; font-weight: 600; white-space: nowrap;
+  transition: transform .12s ease, opacity .15s ease, background .15s ease;
+}
+.df-btn:active { transform: scale(.97); }
+.df-btn[disabled] { opacity: .34; pointer-events: none; }
+.df-btn--primary {
+  background: var(--accent-grad); color: var(--accent-on);
+  border-color: transparent; box-shadow: var(--glow-shadow);
+}
+.df-btn--ghost { background: transparent; color: var(--text-mute); }
+.df-btn--danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+.df-btn--sm { min-height: 34px; padding: 0 12px; font-size: 12px; border-radius: 11px; }
+.df-btn--wide { flex: 1; }
+.df-btn svg { flex: none; }
+
+.df-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+
+.df-chip {
+  font-size: 11px; padding: 4px 9px; border-radius: 10px;
+  border: 1px solid var(--border-faint); color: var(--text-faint); background: var(--surface-2);
+}
+.df-chip.is-on { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+
+.df-pill {
+  font-size: 11px; padding: 3px 8px; border-radius: 99px;
+  background: var(--surface-2); border: 1px solid var(--border-faint); color: var(--text-mute);
+}
+
+.df-tag {
+  font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 99px;
+  border: 1px solid var(--border-soft); color: var(--text-mute); background: var(--surface-2);
+}
+.df-tag.is-open { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+.df-tag.is-live { color: var(--ink); border-color: var(--ink); background: var(--ink-wash); }
+.df-tag.is-done { color: var(--text-faint); }
+
+.df-empty { text-align: center; color: var(--text-faint); font-size: 13px; padding: 24px 0; }
+.df-dim { color: var(--text-faint); }
+
+.df-field-row { display: flex; flex-direction: column; gap: 7px; }
+.df-field-row > .k { font-size: 12px; color: var(--text-mute); font-weight: 600; }
+
+/* 名次徽标 */
+.df-rank {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+  border: 1px solid var(--border-soft); background: var(--surface-2); color: var(--text-mute);
+}
+.df-rank .ic { display: flex; }
+.df-rank[data-tier="1"] { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+.df-rank[data-tier="2"] { color: var(--ink); border-color: var(--ink); background: var(--ink-wash); }
+.df-rank[data-tier="3"] { color: var(--text-mute); }
+.df-rank[data-tier="4"] { color: var(--shared); border-color: var(--shared); background: var(--shared-wash); }
+.df-rank[data-tier="5"] { color: var(--danger); border-color: var(--danger); }
+
+/* toast —— 服务端 400 的中文错误直接扔这儿 */
+.df-toasts {
+  position: fixed; left: 0; right: 0; top: 14px; z-index: 9500;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  pointer-events: none; padding: 0 16px;
+}
+.df-toast {
+  max-width: 440px; padding: 10px 15px; border-radius: 14px;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 8px 30px rgb(0 0 0 / .34);
+  color: var(--text-strong); font-size: 13px; line-height: 1.5;
+  animation: dfToastIn .22s ease both;
+}
+.df-toast.is-bad { border-color: var(--danger); color: var(--danger); }
+.df-toast.is-out { animation: dfToastOut .2s ease both; }
+@keyframes dfToastIn { from { opacity: 0; transform: translateY(-10px); } }
+@keyframes dfToastOut { to { opacity: 0; transform: translateY(-8px); } }
+
+/* 弹层 / 底部抽屉 */
+.df-scrim {
+  position: fixed; inset: 0; z-index: 9200;
+  background: var(--scrim, rgb(0 0 0 / .55));
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: dfFade .2s ease both;
+}
+.df-scrim.is-sheet { align-items: flex-end; padding: 0; }
+@keyframes dfFade { from { opacity: 0; } }
+
+.df-modal, .df-sheet {
+  width: 100%;
+  /* 磨砂面 + 一层中性不透明底：牌桌文字多，纯玻璃会透上来抢戏 */
+  background: color-mix(in srgb, var(--panel-solid) 76%, var(--glass-surface));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 14px 40px rgb(0 0 0 / .45);
+  color: var(--text);
+}
+.df-modal {
+  max-width: 380px; border-radius: 22px; padding: 18px;
+  max-height: 84dvh; overflow-y: auto;
+  animation: dfPop .24s cubic-bezier(.2, .9, .3, 1.2) both;
+}
+.df-sheet {
+  max-width: 520px; margin: 0 auto;
+  border-radius: 22px 22px 0 0; border-bottom: none;
+  /* 底部不写 env(safe-area-inset-bottom)（iOS PWA 铁律），靠内边距留白 */
+  padding: 10px 16px 30px;
+  max-height: 82dvh; overflow-y: auto;
+  animation: dfSheetIn .26s cubic-bezier(.2, .9, .3, 1.05) both;
+}
+@keyframes dfPop { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+@keyframes dfSheetIn { from { transform: translateY(100%); } }
+.df-modal h2, .df-sheet h2 { font-size: 17px; font-weight: 700; color: var(--text-strong); }
+.df-modal .sub, .df-sheet .sub { font-size: 12.5px; color: var(--text-dim); margin-top: 5px; line-height: 1.6; }
+.df-modal .df-field-row { margin-top: 16px; }
+.df-modal-acts { display: flex; gap: 8px; margin-top: 18px; }
+.df-modal-acts .df-btn:last-child { flex: 1; }
+.df-sheet-grip { width: 38px; height: 4px; border-radius: 99px; background: var(--border); margin: 2px auto 12px; }
+.df-sheet-acts { display: flex; gap: 8px; margin-top: 16px; }
+.df-sheet-acts .df-btn { flex: 1; }
+
+/* 开关 */
+.df-toggle {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  min-height: 52px; padding: 9px 12px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+  transition: border-color .18s ease, background .18s ease;
+}
+.df-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.df-toggle .tx { flex: 1; min-width: 0; }
+.df-toggle .k { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.df-toggle .n { display: block; font-size: 11px; color: var(--text-faint); margin-top: 2px; line-height: 1.4; }
+.df-toggle .sw {
+  position: relative; flex: none; width: 44px; height: 26px; border-radius: 99px;
+  background: var(--surface-3); border: 1px solid var(--border);
+  transition: background .18s ease, border-color .18s ease;
+}
+.df-toggle .sw::after {
+  content: ''; position: absolute; left: 2.5px; top: 2px;
+  width: 19px; height: 19px; border-radius: 50%;
+  background: var(--text-mute); transition: transform .18s ease, background .18s ease;
+}
+.df-toggle.is-on { border-color: var(--accent-line); }
+.df-toggle.is-on .sw { background: var(--accent-wash); border-color: var(--accent-line); }
+.df-toggle.is-on .sw::after { transform: translateX(18px); background: var(--accent); }
+
+/* ═════════ 大厅 ═════════ */
+
+.lobby { max-width: 520px; margin: 0 auto; padding: 16px 16px 28px; display: flex; flex-direction: column; gap: 16px; }
+.lb-head { text-align: center; padding: 8px 0 2px; }
+.lb-head h1 { font-size: 26px; font-weight: 800; color: var(--text-strong); letter-spacing: -.01em; }
+.lb-head p { font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.6; }
+
+.lb-card { padding: 16px 17px; display: flex; flex-direction: column; gap: 13px; }
+.lb-card .hd { display: flex; align-items: center; gap: 9px; color: var(--text-strong); font-size: 15px; font-weight: 700; }
+.lb-card .hd .ic { color: var(--accent); display: flex; }
+
+/* 规则折叠面板 */
+.df-rules { border: 1px solid var(--border-faint); border-radius: 14px; background: var(--surface-2); overflow: hidden; }
+.df-rules > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; padding: 11px 13px; min-height: 52px;
+}
+.df-rules > summary::-webkit-details-marker { display: none; }
+.df-rules > summary .ic { display: flex; color: var(--accent); flex: none; }
+.df-rules > summary .tx { flex: 1; min-width: 0; }
+.df-rules > summary .k { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.df-rules > summary .n { display: block; font-size: 11px; color: var(--text-faint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.df-rules > summary .chev {
+  flex: none; width: 8px; height: 8px; margin-right: 4px;
+  border-right: 1.8px solid var(--text-faint); border-bottom: 1.8px solid var(--text-faint);
+  transform: rotate(45deg); transition: transform .2s ease;
+}
+.df-rules[open] > summary .chev { transform: rotate(-135deg); }
+.df-rules-body { display: flex; flex-direction: column; gap: 8px; padding: 2px 10px 12px; }
+
+.lb-rooms { display: flex; flex-direction: column; gap: 10px; }
+.lb-sec { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; }
+
+.df-room-card { padding: 14px 15px; display: flex; align-items: center; gap: 12px; transition: transform .14s ease; }
+.df-room-card:active { transform: scale(.985); }
+.df-room-card .main { flex: 1; min-width: 0; }
+.df-room-card .nm { font-size: 15px; font-weight: 700; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.df-room-card .sub { font-size: 11.5px; color: var(--text-dim); margin-top: 5px; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.df-room-card .sub .bot { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); }
+.df-room-card .who { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.df-room-card .chev { color: var(--text-faint); display: flex; }
+.df-mine { color: var(--accent); }
+
+/* ═════════ 牌（纯 CSS，无图片）═════════ */
+
+.df-card {
+  position: relative; flex: none; display: block;
+  width: 54px; height: 76px; padding: 5px 6px;
+  border-radius: 9px;
+  background: var(--df-face);
+  border: 1px solid var(--df-face-line);
+  box-shadow: inset 0 1px 0 var(--border-soft), 0 3px 10px rgb(0 0 0 / .34);
+  color: var(--df-black); text-align: left;
+  transition: transform .16s cubic-bezier(.2, .9, .3, 1.3), box-shadow .16s ease, opacity .2s ease;
+}
+.df-card .r { display: block; font-size: 19px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+.df-card .s { display: block; font-size: 13px; line-height: 1.1; margin-top: 1px; }
+.df-card .c { position: absolute; right: 5px; bottom: 4px; font-size: 24px; line-height: 1; opacity: .38; }
+.df-card.is-tone-red { color: var(--df-red); }
+.df-card.is-tone-black { color: var(--df-black); }
+.df-card.is-tone-joker { color: var(--df-joker); border-color: var(--accent-line); box-shadow: inset 0 0 14px var(--accent-wash), 0 3px 10px rgb(0 0 0 / .34); }
+.df-card.is-tone-joker .r { font-size: 24px; margin-top: 12px; text-align: center; }
+.df-card.is-tone-joker .s { font-size: 8px; letter-spacing: .16em; text-align: center; margin-top: 4px; }
+.df-card.is-on {
+  transform: translateY(-18px);
+  box-shadow: 0 0 0 2px var(--accent), var(--glow-shadow), 0 12px 22px rgb(0 0 0 / .45);
+}
+.df-card.is-dead { opacity: .3; }
+.df-card--sm { width: 38px; height: 54px; padding: 3px 4px; border-radius: 7px; }
+.df-card--sm .r { font-size: 13px; }
+.df-card--sm .s { font-size: 10px; }
+.df-card--sm .c { display: none; }
+
+/* 牌背（对手剩余张数用的小堆） */
+.df-back {
+  display: block; width: 13px; height: 19px; border-radius: 3px;
+  background: var(--accent-grad);
+  border: 1px solid var(--glow-border);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .4);
+  margin-left: -7px;
+}
+.df-back:first-child { margin-left: 0; }
+
+/* ═════════ 牌桌外壳 ═════════ */
+
+body.df-room { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+
+/* status-bar=black 时 iOS standalone 已把视口压到状态栏下方，这里不再自己垫 safe-area */
+.df-top { flex: none; padding: 10px 12px 6px; display: flex; flex-direction: column; gap: 9px; }
+.df-top-row { display: flex; align-items: center; gap: 10px; }
+.df-back { display: flex; color: var(--text-mute); padding: 4px; margin: -4px; }
+.df-title { flex: 1; min-width: 0; }
+.df-title .nm { font-size: 14.5px; font-weight: 700; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.df-title .cd { font-size: 10.5px; color: var(--text-faint); letter-spacing: .1em; margin-top: 1px; }
+.df-iconbtn {
+  flex: none; width: 36px; height: 36px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-mute); border: 1px solid var(--border-faint); background: var(--surface-2);
+}
+.df-iconbtn:active { transform: scale(.94); }
+.df-link { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-dim); }
+.df-link .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 7px var(--ink); }
+.df-link[data-conn="retry"] .dot, .df-link[data-conn="polling"] .dot { background: var(--danger); box-shadow: 0 0 7px var(--danger); }
+
+/* 对手条 */
+.df-seats { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.df-seats::-webkit-scrollbar { display: none; }
+.df-seat {
+  flex: none; min-width: 104px; max-width: 140px;
+  padding: 8px 10px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.df-seat .top { display: flex; align-items: center; gap: 5px; }
+.df-seat .top .bot { display: flex; color: var(--ink); flex: none; }
+.df-seat .nm { font-size: 12px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.df-seat .cnt { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.df-seat .cnt .backs { display: flex; }
+.df-seat .cnt b { font-size: 14px; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.df-seat .cnt .u { font-size: 10px; color: var(--text-faint); }
+.df-seat .tail { display: flex; align-items: center; gap: 5px; margin-top: 5px; min-height: 16px; }
+.df-seat .tail .tx { font-size: 10px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.df-seat.is-turn { border-color: var(--accent-line); background: var(--accent-wash); box-shadow: var(--glow-shadow); }
+.df-seat.is-passed { opacity: .6; }
+.df-seat.is-done { opacity: .5; }
+.df-seat.is-empty { color: var(--text-faint); font-size: 12px; display: flex; align-items: center; justify-content: center; min-height: 62px; }
+
+/* ═════════ 中央场面 ═════════ */
+
+.df-stage {
+  flex: 1; min-height: 0; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 6px 12px 2px;
+}
+
+.df-field {
+  position: relative; width: 100%; max-width: 420px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 12px 12px; border-radius: 20px;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 12px 34px rgb(0 0 0 / .34);
+}
+.df-turn { font-size: 13px; color: var(--text-mute); }
+.df-turn b { color: var(--text-strong); }
+.df-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; min-height: 0; }
+.df-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px;
+  border: 1px solid var(--border-soft); color: var(--text-mute); background: var(--surface-2);
+}
+.df-badge.is-revo {
+  color: var(--danger); border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  animation: dfRevoBadge 1.8s ease-in-out infinite;
+}
+.df-badge.is-lock { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+@keyframes dfRevoBadge { 50% { opacity: .55; } }
+
+.df-pile { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; min-height: 80px; }
+.df-pile-empty { font-size: 12px; color: var(--text-faint); }
+.df-by { font-size: 11.5px; color: var(--text-dim); min-height: 16px; }
+
+.df-log { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 4px; }
+.df-log .row {
+  font-size: 11px; line-height: 1.45; color: var(--text-dim);
+  padding: 4px 9px; border-radius: 9px; background: var(--surface-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  animation: dfLogIn .28s ease both;
+}
+.df-log .row:last-child { color: var(--text-strong); background: var(--accent-wash); }
+@keyframes dfLogIn { from { opacity: 0; transform: translateY(6px); } }
+
+/* 未开局面板（盖住舞台）*/
+.df-wait { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+.df-wait .box { width: 100%; max-width: 360px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.df-wait h2 { font-size: 20px; font-weight: 800; color: var(--text-strong); letter-spacing: .16em; margin-top: 6px; }
+.df-wait .sub { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; }
+.df-seatlist { display: flex; flex-direction: column; gap: 8px; }
+.df-seatrow { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border-faint); }
+.df-seatrow .bot { display: flex; color: var(--ink); }
+.df-seatrow .nm { flex: 1; font-size: 13px; color: var(--text); font-weight: 600; }
+.df-seatrow .role { font-size: 10.5px; color: var(--text-faint); }
+.df-rulechips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ═════════ 底部：通知条 / 手牌扇面 / 操作区 ═════════ */
+
+.df-bottom {
+  flex: none;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border-top: 1px solid var(--glow-border);
+}
+
+.df-notice {
+  margin: 10px 12px 0; padding: 9px 12px; border-radius: 13px;
+  font-size: 12px; line-height: 1.5; color: var(--text);
+  border: 1px solid var(--accent-line); background: var(--accent-wash);
+}
+.df-notice b { color: var(--text-strong); }
+
+.df-handzone { padding-top: 4px; }
+.df-hand-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 14px 0; }
+.df-hand-head #r-mine { font-size: 11.5px; color: var(--text-mute); display: flex; align-items: center; gap: 6px; }
+.df-hand-head #r-mine b { color: var(--text-strong); font-size: 13px; }
+.df-hand-head .hint { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.df-hand-head .hint.is-bad { color: var(--danger); }
+
+/* 扇面：横向可滚，牌互相压边，选中的往上浮 */
+.df-fan {
+  display: flex; align-items: flex-end;
+  /* safe center：牌少时居中，牌多到溢出时退回左对齐（不然左边那几张滚不到）*/
+  justify-content: safe center;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  padding: 24px 14px 8px;
+}
+.df-fan::-webkit-scrollbar { display: none; }
+/* 发牌入场只用 backwards：跑完就把 transform 还给元素自身，
+ * 不然 fill:forwards 会把 .is-on 的上浮压住 */
+.df-fan .df-card { margin-left: -12px; animation: dfDeal .3s ease backwards; animation-delay: calc(var(--i) * 22ms); }
+.df-fan .df-card:first-child { margin-left: 0; }
+.df-fan .df-card.is-on { z-index: 3; }
+.df-fan .df-card:active { transform: translateY(-8px); }
+.df-fan .df-card.is-on:active { transform: translateY(-22px); }
+@keyframes dfDeal { from { opacity: 0; transform: translateY(26px) rotate(6deg); } }
+
+.df-acts {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px 22px;   /* 底部不写 env(safe-area-inset-bottom)（iOS PWA 铁律） */
+}
+.df-actbar-hint {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  min-height: 46px; padding: 0 4px;
+  font-size: 13px; color: var(--text-mute);
+}
+.df-actbar-hint b { color: var(--text-strong); }
+.df-actbar-hint svg { color: var(--ink); }
+.df-watch {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 11px 16px; border-radius: 99px;
+  border: 1px solid var(--accent-line); background: var(--accent-wash); color: var(--accent);
+  font-size: 13px; font-weight: 700;
+}
+
+/* ═════════ 动效 ═════════ */
+
+/* 出牌飞入场中 */
+.df-pile .df-card.is-fly { animation: dfFly .34s cubic-bezier(.2, .9, .3, 1.15) backwards; animation-delay: calc(var(--i) * 55ms); }
+@keyframes dfFly {
+  from { opacity: 0; transform: translateY(120px) scale(.72) rotate(-8deg); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+
+/* 清场：牌散开淡出（八切也走这个，另配横幅）*/
+.df-ghost { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 4px; pointer-events: none; }
+.df-ghost .df-card { transition: transform .7s cubic-bezier(.2, .7, .3, 1), opacity .7s ease; }
+.df-ghost.is-scatter .df-card {
+  transform: translate(var(--dx, 0), var(--dy, -60px)) rotate(var(--rot, 20deg)) scale(.9);
+  opacity: 0;
+}
+
+.df-banner {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 30px; font-weight: 800; letter-spacing: .14em;
+  color: var(--accent); text-shadow: 0 0 24px var(--accent-wash);
+  pointer-events: none; z-index: 6;
+  animation: dfBanner 1.3s cubic-bezier(.2, .9, .3, 1) both;
+}
+.df-banner.is-hachi { color: var(--ink); text-shadow: 0 0 24px var(--ink-wash); }
+@keyframes dfBanner {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -160%) scale(1); }
+}
+
+/* 革命：全场 180° 翻 + 变色 */
+body.is-revolting .df-stage, body.is-revolting .df-seats {
+  animation: dfFlip 1.5s cubic-bezier(.4, 0, .2, 1) both;
+}
+@keyframes dfFlip {
+  0% { transform: none; filter: none; }
+  18% { filter: hue-rotate(140deg) saturate(2) contrast(1.15); }
+  50% { transform: rotate(180deg) scale(.84); filter: hue-rotate(300deg) saturate(2.4) contrast(1.2); }
+  82% { filter: hue-rotate(160deg) saturate(1.7); }
+  100% { transform: rotate(360deg) scale(1); filter: none; }
+}
+.df-revo {
+  position: fixed; inset: 0; z-index: 9600; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background:
+    radial-gradient(circle at 50% 50%, var(--accent-wash), transparent 62%),
+    var(--scrim, rgb(0 0 0 / .45));
+  animation: dfRevoIn .3s ease both;
+}
+.df-revo.is-off { background: radial-gradient(circle at 50% 50%, var(--ink-wash), transparent 62%), var(--scrim, rgb(0 0 0 / .4)); }
+.df-revo.is-out { animation: dfRevoOut .4s ease both; }
+.df-revo .ring { color: var(--danger); filter: drop-shadow(0 0 22px var(--accent-wash)); animation: dfRevoSpin 1.5s cubic-bezier(.3, .8, .3, 1) both; }
+.df-revo.is-off .ring { color: var(--ink); }
+.df-revo .word {
+  font-size: 52px; font-weight: 800; letter-spacing: .22em; color: var(--text-strong);
+  text-shadow: 0 0 30px var(--accent-wash);
+  animation: dfRevoWord 1.5s cubic-bezier(.2, .9, .3, 1.2) both;
+}
+.df-revo .tip { font-size: 13px; color: var(--text-dim); animation: dfRevoIn .5s .3s ease both; }
+@keyframes dfRevoIn { from { opacity: 0; } }
+@keyframes dfRevoOut { to { opacity: 0; } }
+@keyframes dfRevoSpin { from { transform: rotate(0) scale(.4); } to { transform: rotate(540deg) scale(1); } }
+@keyframes dfRevoWord {
+  0% { opacity: 0; transform: scale(2.4) rotate(-12deg); letter-spacing: .6em; }
+  45% { opacity: 1; transform: scale(1) rotate(0); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ═════════ 名次揭晓卡 ═════════ */
+
+.df-modal.df-reveal { max-width: 340px; text-align: center; }
+.df-reveal .df-eyebrow { display: block; }
+.df-reveal h2 { margin-top: 4px; font-size: 22px; }
+.df-reveal-list { display: flex; flex-direction: column; gap: 8px; margin: 16px 0 4px; }
+.df-reveal-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-radius: 13px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+  animation: dfRevealIn .42s cubic-bezier(.2, .9, .3, 1.2) backwards;
+  animation-delay: calc(var(--i) * 140ms);
+}
+.df-reveal-row.is-me { border-color: var(--accent-line); background: var(--accent-wash); }
+.df-reveal-row .pos { font-size: 13px; font-weight: 800; color: var(--text-faint); width: 16px; text-align: left; }
+.df-reveal-row .nm { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; color: var(--text-strong); text-align: left; display: flex; align-items: center; gap: 5px; overflow: hidden; }
+.df-reveal-row .nm .bot { display: flex; color: var(--ink); }
+.df-reveal-row .sc { font-size: 12px; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+@keyframes dfRevealIn { from { opacity: 0; transform: translateX(-24px) scale(.94); } }
+.df-reveal-acts { display: flex; gap: 8px; margin-top: 16px; }
+.df-reveal-acts .df-btn { flex: 1; }
+
+/* ═════════ 计分板 ═════════ */
+
+.df-score-head, .df-score-row { display: flex; align-items: center; gap: 10px; }
+.df-score-head { margin-top: 14px; padding: 0 12px 6px; font-size: 10.5px; color: var(--text-faint); }
+.df-score { display: flex; flex-direction: column; gap: 8px; }
+.df-score-row { padding: 11px 12px; border-radius: 13px; background: var(--surface-2); border: 1px solid var(--border-faint); }
+.df-score-row.is-me { border-color: var(--accent-line); background: var(--accent-wash); }
+.df-score-head .nm, .df-score-row .nm { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 600; color: var(--text-strong); overflow: hidden; }
+.df-score-row .nm .bot { display: flex; color: var(--ink); }
+.df-score-head .rk, .df-score-row .rk { width: 74px; text-align: center; }
+.df-score-head .sc, .df-score-row .sc { width: 44px; text-align: right; font-size: 15px; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.df-score-head .sc { font-size: 10.5px; font-weight: 700; color: var(--text-faint); }
+
+/* ═════════ 整场结束总榜 ═════════ */
+
+.df-over {
+  position: fixed; inset: 0; z-index: 9400; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 24px;
+  /* 全屏一层玻璃，别让底下的牌桌文字透上来跟总榜打架 */
+  background: var(--scrim, rgb(0 0 0 / .72));
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  backdrop-filter: blur(16px) saturate(1.1);
+}
+.df-over .crown { color: var(--accent); filter: drop-shadow(0 0 18px var(--accent-wash)); animation: dfRise .6s ease both; }
+.df-over .big { font-size: 24px; font-weight: 800; color: var(--text-strong); text-align: center; animation: dfRise .6s .1s ease both; }
+.df-over .sub { font-size: 13px; color: var(--text-dim); animation: dfRise .6s .2s ease both; }
+.df-over-list { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 8px; margin: 4px 0 6px; z-index: 2; }
+.df-over-list .row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 13px; border-radius: 13px;
+  background: var(--glass-surface); border: 1px solid var(--glow-border);
+  animation: dfRise .5s ease backwards; animation-delay: calc(.25s + var(--i) * .1s);
+}
+.df-over-list .row.is-me { border-color: var(--accent-line); }
+.df-over-list .pos { font-size: 13px; font-weight: 800; color: var(--text-faint); width: 14px; }
+.df-over-list .nm { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: var(--text-strong); display: flex; align-items: center; gap: 5px; overflow: hidden; }
+.df-over-list .nm .bot { display: flex; color: var(--ink); }
+.df-over-list .sc { font-size: 16px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.df-over .df-btn { z-index: 2; animation: dfRise .6s .4s ease both; }
+@keyframes dfRise { from { opacity: 0; transform: translateY(18px); } }
+
+.df-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.df-confetti i {
+  position: absolute; top: -6vh; width: 8px; height: 13px; border-radius: 2px;
+  background: var(--accent); animation: dfFall linear infinite;
+}
+.df-confetti i:nth-child(3n+1) { background: var(--ink); }
+.df-confetti i:nth-child(3n+2) { background: var(--shared); }
+@keyframes dfFall {
+  0% { transform: translateY(-10vh) rotate(0); opacity: 0; }
+  8% { opacity: 1; }
+  100% { transform: translateY(112vh) rotate(760deg); opacity: .9; }
+}
+
+/* ═════════ 无障碍 / 宽屏 ═════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .df-confetti { display: none; }
+  .df-fan .df-card,
+  .df-pile .df-card.is-fly,
+  .df-reveal-row,
+  .df-over-list .row,
+  .df-revo .ring,
+  .df-revo .word,
+  .df-badge.is-revo,
+  body.is-revolting .df-stage,
+  body.is-revolting .df-seats { animation: none; }
+  .df-ghost .df-card { transition: opacity .3s ease; }
+}
+
+@media (min-width: 900px) {
+  .df-top { padding-left: 20px; padding-right: 20px; }
+  .df-acts { padding-left: 20px; padding-right: 20px; justify-content: center; }
+  .df-acts .df-btn--wide { flex: none; min-width: 160px; }
+  .df-notice { margin-left: 20px; margin-right: 20px; }
+}
+
+/* 矮屏（iPhone SE 横向空间够、竖向紧）：把中央区压一压，保证手牌和按钮不被挤掉 */
+@media (max-height: 700px) {
+  .df-card { width: 48px; height: 68px; }
+  .df-card .r { font-size: 17px; }
+  .df-pile { min-height: 70px; }
+  .df-field { padding: 10px 10px 8px; }
+  .df-log .row:not(:last-child) { display: none; }
+}
+
+/* ── 牌桌聊天 (20260818b) ── */
+
+/* 流水区变成「流水 + 聊天」混排的滚动流：定高可滚，新条目 append 进来贴底 */
+.df-chatdock {
+  position: relative; z-index: 5;
+  width: 100%; max-width: 420px; min-width: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.df-log {
+  max-height: 116px; overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.df-log::-webkit-scrollbar { display: none; }
+
+/* 聊天条：名字吃主题高亮色；流水条是单行省略，聊天正文要放开换行 */
+.df-log .row.is-chat {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 5px 9px;
+  white-space: normal; overflow: visible; text-overflow: clip;
+  color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border-faint);
+}
+.df-log .row.is-chat .bot { flex: none; display: inline-flex; align-self: center; color: var(--ink); }
+.df-log .row.is-chat .who { flex: none; font-weight: 700; color: var(--accent); }
+.df-log .row.is-chat.is-me .who { color: var(--ink); }
+.df-log .row.is-chat .tx { flex: 1; min-width: 0; line-height: 1.5; word-break: break-word; }
+
+/* 输入条：普通文档流，**绝不用 position:fixed**（iOS 键盘弹起时 fixed 会漂）*/
+.df-chatbar { display: flex; align-items: center; gap: 8px; }
+.df-chatbar .df-chatin {
+  flex: 1; min-width: 0;
+  border-radius: 99px; padding: 9px 14px; font-size: 13px;
+}
+.df-chatsend {
+  flex: none; width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent-on); background: var(--accent-grad);
+  border: 1px solid transparent; box-shadow: var(--glow-shadow);
+  transition: transform .12s ease, opacity .15s ease;
+}
+.df-chatsend:active { transform: scale(.94); }
+.df-chatsend[disabled] { opacity: .4; pointer-events: none; }
+
+/* 等人阶段：说明卡是 inset:0 的覆盖层。把聊天压到舞台最底，再把覆盖层的底抬起来，
+   两边就不打架了；覆盖层本身不吃点击（只有中间那张卡吃），点得到输入条 */
+.df-stage.is-waiting { justify-content: space-between; }
+.df-stage.is-waiting .df-wait { bottom: 172px; }
+.df-wait { pointer-events: none; }
+.df-wait .box { pointer-events: auto; }
+
+/* 座位气泡：.df-seats 是横滚容器（纵向会裁），所以有气泡时才给顶上腾高度 */
+.df-seat { position: relative; }
+.df-seats { transition: padding-top .18s ease; }
+.df-seats.has-bubble { padding-top: 34px; }
+.df-bubble {
+  position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 6;
+  width: max-content; max-width: 170px; min-width: 56px;
+  padding: 4px 9px; border-radius: 11px 11px 11px 4px;
+  font-size: 10.5px; line-height: 1.4; color: var(--text-strong);
+  background: color-mix(in srgb, var(--panel-solid) 76%, var(--glass-surface));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 6px 18px rgb(0 0 0 / .3);
+  pointer-events: none;
+  animation: dfBubble 3.5s ease both;
+}
+/* 省略号收在内层，气泡本体不能 overflow:hidden，否则下面那个尖角会被切掉 */
+.df-bubble .tx { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.df-bubble::after {
+  content: ''; position: absolute; left: 12px; bottom: -5px;
+  width: 8px; height: 8px; transform: rotate(45deg);
+  background: inherit;
+  border-right: 1px solid var(--glow-border); border-bottom: 1px solid var(--glow-border);
+}
+@keyframes dfBubble {
+  0% { opacity: 0; transform: translateY(6px) scale(.92); }
+  8% { opacity: 1; transform: none; }
+  86% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .df-bubble { animation: none; }
+  .df-seats { transition: none; }
+}
+
+/* 矮屏：上面那条把非末条流水藏了，聊天得看得见，改成压低整块高度 */
+@media (max-height: 700px) {
+  .df-log .row:not(:last-child) { display: block; }
+  .df-log .row.is-chat:not(:last-child) { display: flex; }
+  .df-log { max-height: 66px; }
+  .df-stage.is-waiting .df-wait { bottom: 124px; }
+}
+
+/* ── AI 名单分组 (20260818b) ── */
+
+.df-ai-sec { padding: 8px 2px 2px; }
+.df-ai-sec:first-child { padding-top: 2px; }
+
+/* ── 牌桌排版收紧 (20260818e)：场面贴顶、聊天吃满剩余高度，消掉上下两块空白 ── */
+.df-stage { justify-content: flex-start; }
+.df-field { flex: 0 0 auto; }
+.df-chatdock { flex: 1 1 auto; min-height: 0; }
+.df-log { flex: 1 1 auto; max-height: none; min-height: 64px; }
+.df-modal-note { margin-top: 10px; font-size: 12.5px; line-height: 1.6; color: var(--text-dim); }
+
+/* ── 玩法说明抽屉 (20260818g) ── */
+.df-help h2 { margin-bottom: 4px; }
+.df-help-sec { margin-top: 14px; }
+.df-help-sec h3 { font-size: 13.5px; font-weight: 700; color: var(--accent); margin-bottom: 5px; }
+.df-help-sec p { font-size: 13px; line-height: 1.75; color: var(--text-dim); }
+.df-help-sec p + p { margin-top: 6px; }
+.df-help-sec b { color: var(--text-strong); font-weight: 650; }
+#lb-help { width: 100%; margin-top: 10px; }
+
+/* ── 20260819a：大小王认脸 + 流水条防压缩 ── */
+.df-card.is-joker-big { color: var(--df-red); border-color: color-mix(in srgb, var(--df-red) 45%, transparent); box-shadow: inset 0 0 14px color-mix(in srgb, var(--df-red) 14%, transparent), 0 3px 10px rgb(0 0 0 / .34); }
+/* .df-log 现在 flex:1 且内容常超高——子项默认 flex-shrink:1 会被压成一条缝叠字 */
+.df-log .row { flex: 0 0 auto; }
+
+/* ── 20260819b：大厅卡片上的关房按钮 ── */
+.df-room-close {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 11px; margin-left: 4px;
+  color: var(--text-faint); border: 1px solid var(--border-faint); background: var(--surface-2);
+  transition: color .15s ease, border-color .15s ease;
+}
+.df-room-close:active { color: var(--danger); border-color: var(--danger); }

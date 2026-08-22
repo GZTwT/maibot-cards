@@ -1,0 +1,18 @@
+# Example systemd unit for the Bisca cards hub (Dou Dizhu / Zhajinhua / UNO).
+# Copy to /etc/systemd/system/, adjust paths/user, then:
+#   systemctl daemon-reload && systemctl enable --now bisca-cards
+[Unit]
+Description=Bisca cards hub (Dou Dizhu / Zhajinhua / UNO), port 8081
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/bisca/cards
+ExecStart=/usr/bin/node /opt/bisca/cards/server.cjs
+Restart=always
+RestartSec=3
+# User=games
+# Environment=PORT=8081
+# Environment=BISCA_PASSWORD=change-me
+
+[Install]
+WantedBy=multi-user.target

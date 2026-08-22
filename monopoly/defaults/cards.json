@@ -1,0 +1,31 @@
+{
+  "_readme": "机会（chance）/ 命运（community）两副牌。牌面 {id, text, effect}，id 全局唯一，text 是前端翻牌时显示的中文。effect 支持 7 种：\n  {type:'money', amount}          正数进账、负数支出（对银行）\n  {type:'move_to', cell, collectGo} 移动到指定格；collectGo=false 表示路过起点不发工资\n  {type:'move_rel', n}            相对移动，负数后退（后退不发工资）\n  {type:'goto_jail'}              直接进监狱，不过起点\n  {type:'get_out_free'}           拿一张出狱卡，持有期间此牌不回牌堆\n  {type:'per_player', amount}     正数向其他每人各收 amount，负数向每人各付\n  {type:'repairs', perHouse, perHotel} 按自己名下房屋/旅馆数向银行付修缮费\ncell 索引对应 data/board.json 的 idx。牌抽完会自动把弃牌堆洗回来，所以每副牌几张都行。加牌只要保证 id 不撞。",
+  "chance": [
+    { "id": "c01", "text": "路边随手买的彩票中了个小奖，进账 ¥1500。", "effect": { "type": "money", "amount": 1500 } },
+    { "id": "c02", "text": "半夜急诊，医保没覆盖，自付医药费 ¥1000。", "effect": { "type": "money", "amount": -1000 } },
+    { "id": "c03", "text": "一觉醒来发现走错了城市，回到起点（照领工资）。", "effect": { "type": "move_to", "cell": 0, "collectGo": true } },
+    { "id": "c04", "text": "被朋友拉去外滩看夜景，直接移动到上海·外滩。", "effect": { "type": "move_to", "cell": 39, "collectGo": true } },
+    { "id": "c05", "text": "地图导航把你带沟里了，后退 3 格。", "effect": { "type": "move_rel", "n": -3 } },
+    { "id": "c06", "text": "深夜街头飙车被交警拦下，直接进监狱，不过起点。", "effect": { "type": "goto_jail" } },
+    { "id": "c07", "text": "认识了个靠谱律师，赠你一张出狱卡，留着备用。", "effect": { "type": "get_out_free" } },
+    { "id": "c08", "text": "今天你过生日，其他每位玩家各送你 ¥500。", "effect": { "type": "per_player", "amount": 500 } },
+    { "id": "c09", "text": "嘴一快说了「这顿我请」，给其他每人各付 ¥500。", "effect": { "type": "per_player", "amount": -500 } },
+    { "id": "c10", "text": "房屋年检不合格：每栋房付 ¥250，每座旅馆付 ¥1000。", "effect": { "type": "repairs", "perHouse": 250, "perHotel": 1000 } },
+    { "id": "c11", "text": "抢到一张打折高铁票，移动到北京南站。", "effect": { "type": "move_to", "cell": 5, "collectGo": true } },
+    { "id": "c12", "text": "银行利息算错了，退还你 ¥500。", "effect": { "type": "money", "amount": 500 } }
+  ],
+  "community": [
+    { "id": "m01", "text": "年终奖到账，进账 ¥2000。", "effect": { "type": "money", "amount": 2000 } },
+    { "id": "m02", "text": "物业费该补缴了，支出 ¥1500。", "effect": { "type": "money", "amount": -1500 } },
+    { "id": "m03", "text": "去监狱探望老朋友——只是探监，不算坐牢。", "effect": { "type": "move_to", "cell": 10, "collectGo": false } },
+    { "id": "m04", "text": "顺路搭上邻居的车，前进 3 格。", "effect": { "type": "move_rel", "n": 3 } },
+    { "id": "m05", "text": "在小区群里骂街被举报，直接进监狱。", "effect": { "type": "goto_jail" } },
+    { "id": "m06", "text": "社区评你为年度好人，赠一张出狱卡。", "effect": { "type": "get_out_free" } },
+    { "id": "m07", "text": "同事集体凑份子，其他每人各给你 ¥200。", "effect": { "type": "per_player", "amount": 200 } },
+    { "id": "m08", "text": "过节发红包，给其他每人各 ¥300。", "effect": { "type": "per_player", "amount": -300 } },
+    { "id": "m09", "text": "街道统一翻修摊派：每栋房 ¥400，每座旅馆 ¥1150。", "effect": { "type": "repairs", "perHouse": 400, "perHotel": 1150 } },
+    { "id": "m10", "text": "旧手机挂二手平台卖了个好价，进账 ¥1000。", "effect": { "type": "money", "amount": 1000 } },
+    { "id": "m11", "text": "深夜手滑下单，退货窗口已关，支出 ¥2000。", "effect": { "type": "money", "amount": -2000 } },
+    { "id": "m12", "text": "决定回起点重整旗鼓（照领工资）。", "effect": { "type": "move_to", "cell": 0, "collectGo": true } }
+  ]
+}
