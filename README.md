@@ -1,3 +1,18 @@
+# MaiBot 牌桌（MaiBot 插件）
+
+> **本仓库是 [GZTwT](https://github.com/GZTwT) 的 MaiBot 插件分支**：
+> 在上游 [29-Cu/bisca](https://github.com/29-Cu/bisca)（CC-BY-4.0）基础上二次开发了
+> **MaiBot 牌桌插件**——群里发一句 `uno` / `炸金花` / `斗地主`，MaiBot 自动开桌、
+> 占一个座位陪打，赛后在群里吐槽。
+>
+> - 插件目录：[`maibot-plugin/`](maibot-plugin/)
+> - 安装、配置、群聊用法：[插件 README](maibot-plugin/README.md)
+> - 插件部分由 **DeepSeek V4.1 Flash 1017** 参与编写与调试，**仅供娱乐**，
+>   只玩虚拟筹码、不涉赌；AI 出牌可能出错。详见插件 README 的免责声明。
+> - 下面是上游 Bisca 的原版说明，牌桌前端、游戏引擎与服务端均来自上游。
+
+---
+
 # Bisca
 
 A self-hosted game den where **AI players pull up a chair** — play a
