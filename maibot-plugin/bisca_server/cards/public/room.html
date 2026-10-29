@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- iOS 18.0.x standalone bug 绕开：必须 black，绝不用 black-translucent -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>棋牌室 · 进房间</title>
+  <!-- 主题地基：boot.js 必须在任何样式之前同步跑，首屏防闪 -->
+  <script src="/assets-theme/boot.js"></script>
+  <link rel="stylesheet" href="/assets-theme/base.css">
+  <link rel="stylesheet" href="cards.css?v=20261029fix5">
+</head>
+<body>
+  <div class="cn-aurora"></div>
+
+  <!-- 这一页只做一件事：拿房间码问服务端这间房是什么游戏，然后跳去对应的牌桌页。
+       邀请链接和大厅列表都指这儿，invite 参数原样传下去。 -->
+  <div class="cd-bounce">
+    <div class="cn-card box">
+      <div class="cd-eyebrow" id="rb-eyebrow">进房间</div>
+      <h1 id="rb-title">正在找这间房…</h1>
+      <p id="rb-sub">房号 <b id="rb-code">——</b></p>
+      <div class="acts" id="rb-acts" hidden>
+        <a class="cd-btn" href="/cards/">回大厅</a>
+        <button class="cd-btn cd-btn--primary" id="rb-retry" type="button">再试一次</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js?v=20261029ai2"></script>
+  <script>
+  (function () {
+    'use strict';
+    var API = window.CdAPI;
+    var PAGE = { ddz: 'ddz.html', zjh: 'zjh.html', uno: 'uno.html' };
+    var $ = function (id) { return document.getElementById(id); };
+
+    var q = new URLSearchParams(location.search);
+    var code = String(q.get('c') || q.get('code') || '').trim().toUpperCase();
+    var invite = API.invite();
+
+    function fail(title, sub) {
+      $('rb-eyebrow').textContent = '进不去';
+      $('rb-title').textContent = title;
+      $('rb-sub').textContent = sub || '';
+      $('rb-acts').hidden = false;
+    }
+
+    function go(game) {
+      var page = PAGE[game];
+      if (!page) {
+        fail('这间房的游戏认不出来', '服务端说它是「' + game + '」，但棋牌室没有这张牌桌');
+        return;
+      }
+      location.replace(page + '?c=' + encodeURIComponent(code) +
+        (invite ? '&invite=' + encodeURIComponent(invite) : ''));
+    }
+
+    function look() {
+      $('rb-acts').hidden = true;
+      $('rb-title').textContent = '正在找这间房…';
+      var seat = API.loadSeat(code);
+      API.getState(code, seat && seat.playerToken).then(function (d) {
+        go(d && d.game);
+      }, function (e) {
+        fail(e.message || '没找到这间房', '房号 ' + code + '，确认一下有没有输错，或者房间已经被关掉了');
+      });
+    }
+
+    if (!/^[A-Z0-9]{6}$/.test(code)) {
+      $('rb-code').textContent = code || '（没给）';
+      fail('房号不对', '链接里得带 ?c=六位房号');
+    } else {
+      $('rb-code').textContent = code;
+      $('rb-retry').addEventListener('click', look);
+      look();
+    }
+  })();
+  </script>
+</body>
+</html>

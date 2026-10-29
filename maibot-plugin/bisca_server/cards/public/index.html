@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- iOS 18.0.x standalone bug 绕开：必须 black，绝不用 black-translucent -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>棋牌室 · 大厅</title>
+  <!-- 主题地基：boot.js 必须在任何样式之前同步跑，首屏防闪 -->
+  <script src="/assets-theme/boot.js"></script>
+  <script src="/assets-theme/icons.js"></script>
+  <link rel="stylesheet" href="/assets-theme/base.css">
+  <link rel="stylesheet" href="cards.css?v=20261029fix5">
+  <link rel="stylesheet" href="party.css?v=20261028party">
+</head>
+<body>
+  <div class="cn-aurora"></div>
+
+  <div class="lobby">
+    <div class="lb-head">
+      <h1>棋牌室</h1>
+      <p>斗地主 · 炸金花 · UNO。开一间房，把房间号丢给对面，或者请几个 AI 上桌</p>
+    </div>
+
+    <section class="cn-card lb-card">
+      <div class="hd"><span class="ic" id="lb-ic-new"></span>开个新房间</div>
+
+      <div class="cd-field-row">
+        <span class="k">玩什么</span>
+        <div class="cd-games" id="lb-games"></div>
+      </div>
+
+      <div class="cd-field-row">
+        <span class="k">房间名</span>
+        <input id="lb-room" maxlength="24" placeholder="比如「周五晚上别睡」">
+      </div>
+      <div class="cd-field-row">
+        <span class="k">你的昵称</span>
+        <input id="lb-name" maxlength="16" placeholder="怎么称呼你">
+      </div>
+
+      <details class="cd-rules">
+        <summary>
+          <span class="ic" id="lb-ic-rule"></span>
+          <span class="tx"><span class="k">可选规则</span><span class="n" id="lb-rules-sum"></span></span>
+          <span class="chev"></span>
+        </summary>
+        <div class="cd-rules-body" id="lb-rules"></div>
+        <button class="cd-btn cd-btn--ghost cd-btn--sm" id="lb-help" type="button">这些规则看不懂？点我看玩法说明</button>
+      </details>
+
+      <details class="cd-rules" open>
+        <summary>
+          <span class="ic" id="lb-ic-ai"></span>
+          <span class="tx"><span class="k">请谁上桌</span><span class="n" id="lb-ai-sum"></span></span>
+          <span class="chev"></span>
+        </summary>
+        <div class="cd-rules-body" id="lb-ai"></div>
+      </details>
+
+      <button class="cd-btn cd-btn--primary cd-btn--wide" id="lb-create">建房间并入座</button>
+      <button class="lb-party-btn" id="lb-party" type="button">
+        <span class="ic" id="lb-ic-party"></span>
+        <span class="tx"><span class="k">群聊开桌 · 和 MaiBot 一起打</span>
+          <span class="n">生成一条链接，粘到群里，群友点开就入座</span></span>
+        <span class="chev" id="lb-party-chev"></span>
+      </button>
+    </section>
+
+    <section>
+      <div class="lb-sec"><span class="cd-eyebrow">房间</span>
+        <button class="cd-btn cd-btn--ghost cd-btn--sm" id="lb-refresh">刷新</button>
+      </div>
+      <div class="cd-filter" id="lb-filter"></div>
+      <div class="lb-rooms" id="lb-rooms"><div class="cd-empty">加载中…</div></div>
+    </section>
+  </div>
+
+  <script src="js/api.js?v=20261029ai2"></script>
+  <script src="js/ui.js?v=20260819cards"></script>
+  <script src="js/lobby.js?v=20261028party"></script>
+</body>
+</html>

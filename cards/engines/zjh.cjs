@@ -901,6 +901,13 @@ function briefing(state, playerId) {
     lines.push(`你的筹码 ${p.chips} · 本局已投 ${p.bet}${p.folded && !p.out ? ' · 已弃牌' : ''}${p.allin ? ' · 已全押' : ''}`);
   }
   lines.push(`池底 ${s.pot} · 当前注 ${s.currentBet}${p && !p.folded && s.phase === 'betting' ? ` · 你跟注要 ${callCost(s, p)}` : ''}`);
+  if (p && !p.folded && !p.allin && s.phase === 'betting') {
+    lines.push(
+      compareUnlocked(s)
+        ? `比牌已开放：要花 ${Math.min(compareCost(s), p.chips)}，和指定对手单挑`
+        : '比牌未开放：第一圈每人说过一次话后才行'
+    );
+  }
 
   const tags = s.players.map((q) => {
     const st = q.out ? '轮空' : q.folded ? '已弃' : q.allin ? '全押' : (q.looked ? '明牌' : '闷着');
@@ -932,7 +939,8 @@ function fmtMove(move) {
       if (m.kind === 'raise') return `加注 ${m.amount}${blind} → 当前注 ${m.stake}`;
       return `跟注 ${m.amount}${blind}`;
     case 'fold': return '弃牌';
-    case 'compare': return `比牌 → ${m.targetName || m.target}`;
+    case 'compare':
+      return `比牌 → ${m.targetName || m.target}${m.cost != null ? `（花 ${m.cost}）` : ''}`;
     case 'next_round': return '开下一局';
     case 'end_match': return '收盘';
     default: return String(m.type || '(空)');

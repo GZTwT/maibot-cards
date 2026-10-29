@@ -1,6 +1,6 @@
 /* Bisca 棋牌室 —— 后端封装（范式照抄 daifugo/public/js/api.js，BASE 换成 /cards/api）
  * ① REST（错误一律抛成带中文 message 的 Error，调用方直接 toast）
- * ② openSync：SSE 主链路 + 断线 3s 重连 + 连续 3 次失败退化成 3s 轮询；seq 只前进不回退
+ * ② openSync：SSE 主链路 + 3s 轮询常开（隧道会缓冲 SSE）+ 断线重连；seq 只前进不回退
  * ③ 座位 token 的 localStorage 存取（按房间码分键）
  * ④ gameMeta(game)：规则开关表**不在前端硬编码**，从 GET /cards/engine/<game>.js
  *    把引擎源码当模块加载，读它挂的 window 全局（DdzEngine / ZjhEngine / UnoEngine）拿 meta。
@@ -17,13 +17,20 @@
 
   // 访客邀请：链接上的 ?invite= 记下来，之后所有 API/SSE 都带着走
   // （EventSource 不能加 header，所以 query 也要带；刷新丢参靠 sessionStorage 续命）
-  var INVITE = (function () {
+  function readInvite() {
     try {
       var q = new URLSearchParams(location.search).get('invite');
       if (q) { sessionStorage.setItem('cd-invite', q); return q; }
       return sessionStorage.getItem('cd-invite') || '';
     } catch (e) { return ''; }
-  })();
+  }
+  var INVITE = readInvite();
+
+  // A group link opened in a new tab may be read by party.js before this module loads.
+  function syncInvite() {
+    if (!INVITE) INVITE = readInvite();
+    return INVITE;
+  }
 
   function qs(token) {
     var parts = [];
@@ -35,6 +42,7 @@
   function req(p, opts) {
     var o = Object.assign({ credentials: 'same-origin' }, opts || {});
     o.headers = Object.assign({ 'content-type': 'application/json' }, o.headers || {});
+    syncInvite();
     if (INVITE) o.headers['x-invite-token'] = INVITE;
     return fetch(url(p), o).then(function (r) {
       return r.text().then(function (raw) {
@@ -177,14 +185,55 @@
     return post('/rooms', body);
   }
 
+  /** 群聊开桌：服务端固定加 MaiBot 座位，返回 partyUrl / inviteUrl。 */
+  function createParty(game, name, hostName, rules) {
+    var body = { game: game, name: name, host_name: hostName };
+    if (rules) body.rules = rules;
+    return post('/party', body);
+  }
+
+  /** 群聊邀请入座：临时头优先于 sessionStorage 里的旧邀请。 */
+  function inviteJoin(code, name, invite) {
+    return req('/rooms/' + code + '/join', {
+      method: 'POST', body: JSON.stringify({ name: name }),
+      headers: { 'x-invite-token': invite }
+    });
+  }
+
   function joinRoom(code, name) { return post('/rooms/' + code + '/join', { name: name }); }
 
   /** 带旧 token 回来 = 复座（服务端认了就把座位原样还回来，含 isHost） */
   function rejoin(code, playerToken) { return post('/rooms/' + code + '/join', { playerToken: playerToken }); }
 
+  function guestHeaders(invite) {
+    return invite ? { 'x-invite-token': invite } : {};
+  }
+
+  /** Group-link lobby reads are invite-scoped; they never reveal hands or legal moves. */
+  function partyState(code, invite) {
+    if (invite) INVITE = invite;
+    return req('/rooms/' + code + '/state?invite=' + encodeURIComponent(invite),
+      { headers: guestHeaders(invite) });
+  }
+
+  function partyStart(code, playerToken, invite) {
+    if (invite) INVITE = invite;
+    return req('/rooms/' + code + '/start', {
+      method: 'POST', body: JSON.stringify({ playerToken: playerToken }),
+      headers: guestHeaders(invite)
+    });
+  }
+
+
   function startRoom(code, playerToken) { return post('/rooms/' + code + '/start', { playerToken: playerToken }); }
 
+  function partyAi(code, playerToken, agentId, action) {
+    return post('/rooms/' + code + '/ai', { playerToken: playerToken, agentId: agentId, action: action });
+  }
+
   function closeRoom(code, playerToken) { return post('/rooms/' + code + '/close', { playerToken: playerToken }); }
+
+  function leaveRoom(code, playerToken) { return post('/rooms/' + code + '/leave', { playerToken: playerToken }); }
 
   function getState(code, token) { return req('/rooms/' + code + '/state' + qs(token)); }
 
@@ -210,6 +259,8 @@
   /**
    * openSync(code, token, onPayload, onStatus) -> {close()}
    * onStatus 收 'live' | 'retry' | 'polling'
+   * 轮询常开：cloudflared 会把 SSE 响应整段缓冲，隧道下推送要等关页面才到。
+   * SSE 先到的帧照收，seq 只进不退，重复帧渲染结果一样。
    */
   function openSync(code, token, onPayload, onStatus) {
     var es = null, fails = 0, poll = null, retry = null, closed = false, lastSeq = -1;
@@ -241,7 +292,6 @@
 
     function onEvent(ev) {
       fails = 0;
-      stopPoll();
       status('live');
       var payload = null;
       try { payload = JSON.parse(ev.data); } catch (e) { return; }
@@ -272,6 +322,8 @@
     }
 
     connect();
+    // SSE 能连上（200）但被代理缓冲时不会报错，光等 error 不会退到轮询，所以直接开。
+    startPoll();
 
     return {
       close: function () {
@@ -316,10 +368,16 @@
     ruleDefaults: ruleDefaults,
     listRooms: listRooms,
     createRoom: createRoom,
+    createParty: createParty,
+    inviteJoin: inviteJoin,
+    partyState: partyState,
+    partyStart: partyStart,
+    partyAi: partyAi,
     joinRoom: joinRoom,
     rejoin: rejoin,
     startRoom: startRoom,
     closeRoom: closeRoom,
+    leaveRoom: leaveRoom,
     getState: getState,
     action: action,
     sendChat: sendChat,

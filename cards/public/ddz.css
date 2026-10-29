@@ -176,8 +176,9 @@
  * 不然它会被挤到滚动容器左边界外面，怎么滑都点不到（用 :first-child 反选会跟 .is-dense 撞特异性） */
 .ddz-fan .ddz-card { animation: ddzDeal .3s ease backwards; animation-delay: calc(var(--i) * 20ms); }
 .ddz-fan .ddz-card + .ddz-card { margin-left: -14px; }
-/* 选中的牌抬到最上层：叠着也能看清自己挑了哪几张 */
-.ddz-fan .ddz-card.is-on { z-index: 3; }
+/* 选中的牌靠上浮 + 描边区分，不能再抬 z-index：一抬就会盖住右边那张
+ * 只露出 24px 的未选中牌，导致点不到（实测 dense 手牌必现）。 */
+.ddz-fan .ddz-card.is-on { z-index: auto; }
 .ddz-fan .ddz-card:active { transform: translateY(-8px); }
 .ddz-fan .ddz-card.is-on:active { transform: translateY(-22px); }
 @keyframes ddzDeal { from { opacity: 0; transform: translateY(26px) rotate(6deg); } }

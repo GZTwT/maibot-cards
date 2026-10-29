@@ -1,0 +1,403 @@
+/* 群聊牌局入口：手机一屏能看懂、能点按；桌面只做收窄。 */
+
+.party-page {
+  min-height: 100dvh;
+  background: var(--bg, #0a0a0f);
+}
+
+.party {
+  position: relative;
+  z-index: 1;
+  width: min(460px, 100%);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding:
+    calc(14px + env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-left))
+    calc(18px + env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.party-top {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.party-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-faint);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--text-mute);
+}
+
+.party-hero {
+  padding: 18px 18px 16px;
+  overflow: hidden;
+  position: relative;
+}
+
+.party-hero::after {
+  content: "";
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  right: -55px;
+  top: -75px;
+  border-radius: 50%;
+  background: var(--accent-wash);
+  pointer-events: none;
+}
+
+.party-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--accent);
+}
+
+.party-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .5;
+}
+
+.party-hero h1 {
+  position: relative;
+  margin: 10px 0 5px;
+  font-size: 23px;
+  line-height: 1.25;
+  letter-spacing: -.01em;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.party-sub {
+  margin: 0;
+  color: var(--text-mute);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.party-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.party-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 10px 3px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border-faint);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  max-width: 100%;
+}
+
+.party-person i {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  color: #14141e;
+  background: var(--pc, #8a8ab0);
+}
+
+.party-person.bot {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.party-person.empty {
+  border-style: dashed;
+  color: var(--text-faint);
+  padding: 3px 10px;
+}
+
+/* 群聊桌第一个真人的 AI 补位区 */
+.party-fill {
+  margin-top: 12px;
+  padding: 13px 14px;
+  border-radius: 16px;
+  border: 1px dashed var(--border-faint);
+  background: var(--surface-2);
+}
+
+.party-fill-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.party-fill-head span {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+.party-fill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.party-fill-btn {
+  min-height: 34px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-faint);
+  background: var(--surface-3, var(--surface-2));
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.party-fill-btn.is-on {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+.party-fill-btn:active { transform: scale(.97); }
+.party-fill-btn[disabled] { opacity: .5; pointer-events: none; }
+.party-fill .party-note { margin: 8px 0 0; }
+
+.party-seat {
+  padding: 16px;
+}
+
+.party-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  color: var(--text-faint);
+}
+
+.party-seat input {
+  min-height: 48px;
+  font-size: 16px;
+  border-radius: 13px;
+}
+
+.party-main {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 10px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: var(--accent-grad);
+  box-shadow: var(--glow-shadow);
+  color: var(--accent-on);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  transition: transform .12s ease, opacity .15s ease;
+}
+
+.party-main:active { transform: scale(.975); }
+.party-main[disabled] { opacity: .4; pointer-events: none; }
+
+.party-note {
+  min-height: 18px;
+  margin: 9px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.party-note.is-bad { color: var(--danger); }
+.party-note.is-ok { color: var(--accent); }
+
+.party-quiet {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 0 2px;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.party-quiet:active { color: var(--danger); }
+
+.party-wait {
+  padding: 15px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-wash);
+}
+
+.party-wait p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-mute);
+  line-height: 1.6;
+}
+
+.party-wait strong {
+  display: block;
+  color: var(--text-strong);
+  font-size: 15px;
+}
+
+.party-wait .party-main { margin-top: 12px; }
+
+.party-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 62px;
+  padding: 10px 13px;
+  text-align: left;
+  border-radius: 15px;
+  border: 1px solid var(--border-faint);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.party-link:active { background: var(--surface-3, var(--surface-2)); }
+
+.party-link-ic {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 10px;
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.party-link .tx { flex: 1; min-width: 0; }
+.party-link .k { display: block; font-size: 13px; font-weight: 600; color: var(--text-strong); }
+.party-link .n { display: block; margin-top: 2px; font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.party-foot {
+  margin: auto 0 0;
+  padding-top: 12px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.party-toast {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 16px);
+  max-width: calc(100vw - 36px);
+  padding: 10px 15px;
+  border-radius: 12px;
+  background: var(--text-strong, #f3f3fa);
+  color: var(--bg, #0a0a0f);
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.party-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* 大厅的群聊开桌入口 + 分享弹窗 */
+.lb-party-btn {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 58px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--text);
+  text-align: left;
+}
+
+.lb-party-btn:active { transform: scale(.99); }
+.lb-party-btn[disabled] { opacity: .45; pointer-events: none; }
+.lb-party-btn .ic {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--accent);
+}
+.lb-party-btn .tx { flex: 1; min-width: 0; }
+.lb-party-btn .k { display: block; font-size: 13px; font-weight: 700; color: var(--text-strong); }
+.lb-party-btn .n { display: block; margin-top: 2px; font-size: 11px; line-height: 1.5; color: var(--text-mute); }
+.lb-party-btn .chev { display: flex; color: var(--accent); }
+
+.party-share-area {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 11px;
+  border: 1px solid var(--border-faint);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: none;
+}
+
+/* 手机横屏或很矮的屏：收起大标题，把入座按钮留在首屏。 */
+@media (max-height: 590px) {
+  .party { gap: 8px; padding-top: calc(7px + env(safe-area-inset-top)); }
+  .party-top { min-height: 22px; }
+  .party-hero { padding: 12px 14px; }
+  .party-hero h1 { font-size: 19px; margin-top: 6px; }
+  .party-people { margin-top: 9px; }
+  .party-seat { padding: 12px 14px; }
+  .party-main { min-height: 46px; margin-top: 7px; }
+  .party-foot { display: none; }
+}
+
+@media (min-width: 560px) {
+  .party { padding-top: 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .party-main, .party-toast { transition: none; }
+}

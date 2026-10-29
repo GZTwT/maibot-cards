@@ -15,5 +15,11 @@
     "start:daifugo": "node daifugo/server.cjs",
     "start:cards": "node cards/server.cjs",
     "test": "npm test --workspace monopoly --workspace daifugo --workspace cards"
+  },
+  "allowScripts": {
+    "esbuild@0.25.10": true
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10"
   }
 }

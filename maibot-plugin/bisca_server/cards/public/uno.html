@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- iOS 18.0.x standalone bug 绕开：必须 black，绝不用 black-translucent -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>UNO · 牌桌</title>
+  <!-- 主题地基：boot.js 必须在任何样式之前同步跑，首屏防闪 -->
+  <script src="/assets-theme/boot.js"></script>
+  <script src="/assets-theme/icons.js"></script>
+  <link rel="stylesheet" href="/assets-theme/base.css">
+  <link rel="stylesheet" href="cards.css?v=20261029fix5">
+  <link rel="stylesheet" href="uno.css?v=20260819cards">
+</head>
+<body class="cd-room">
+  <div class="cn-aurora"></div>
+
+  <header class="cd-top">
+    <div class="cd-top-row">
+      <a class="cd-back" id="r-back" href="/cards/" aria-label="回大厅"></a>
+      <div class="cd-title">
+        <div class="nm" id="r-name">房间</div>
+        <div class="cd" id="r-code"></div>
+      </div>
+      <button class="cd-iconbtn" id="r-help" type="button" aria-label="玩法说明"></button>
+      <button class="cd-iconbtn" id="r-score" type="button" aria-label="计分板"></button>
+      <button class="cd-iconbtn" id="r-close" type="button" aria-label="关闭房间" hidden></button>
+      <div class="cd-link" id="r-conn" data-conn="retry"><span class="dot"></span><span class="tx">连接中</span></div>
+    </div>
+    <div class="cd-seats" id="r-seats"></div>
+  </header>
+
+  <main class="cd-stage" id="r-stage">
+    <section class="cd-field" id="r-field">
+      <div class="cd-turn" id="r-turn"></div>
+      <div class="cd-badges" id="r-badges"></div>
+      <!-- 场面中央：弃牌堆顶牌（大卡）+ 当前生效颜色色环 + 方向 + 牌库剩余
+           顶牌和色环可能不同色（万能牌指定颜色之后），**以色环为准** -->
+      <div class="uno-table">
+        <div class="uno-discard" id="r-top"></div>
+        <div class="uno-meta">
+          <div class="uno-ring" id="r-color" data-color=""></div>
+          <div class="uno-dir" id="r-dir" data-dir="1"></div>
+          <div class="uno-deck" id="r-deck"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 流水 + 聊天混排的一条流，下面挂输入条。
+         输入条**不能**用 position:fixed —— iOS 键盘弹起时 fixed 会漂，老老实实待在文档流里。 -->
+    <div class="cd-chatdock" id="r-chatdock">
+      <div class="cd-log" id="r-log"></div>
+      <form class="cd-chatbar" id="r-chatbar" autocomplete="off">
+        <input class="cd-chatin" id="r-chatin" type="text" maxlength="280" placeholder="说点什么…"
+               enterkeyhint="send" aria-label="牌桌聊天">
+        <button class="cd-chatsend" id="r-chatsend" type="submit" aria-label="发送"></button>
+      </form>
+    </div>
+
+    <div class="cd-wait" id="r-wait" hidden></div>
+  </main>
+
+  <footer class="cd-bottom">
+    <div class="cd-notice" id="r-notice" hidden></div>
+    <div class="uno-handzone" id="r-handzone" hidden>
+      <div class="uno-hand-head">
+        <span id="r-mine"></span>
+        <span class="hint" id="r-hint"></span>
+      </div>
+      <div class="uno-hand" id="r-fan"></div>
+    </div>
+    <div class="cd-acts" id="r-acts"></div>
+  </footer>
+
+  <!-- 引擎（出牌合法性预判用）。**没就绪也不影响玩**：uno-room.js 里所有引擎调用都是防御性的，
+       拿不到就整体降级——手牌全亮、不预判，错了由服务端 400 中文提示兜底。 -->
+  <script src="/cards/engine/uno.js?v=20260819cards" onerror="console.warn('[uno] 引擎没加载上，前端预判降级')"></script>
+
+  <script src="js/api.js?v=20261029ai2"></script>
+  <script src="js/ui.js?v=20260819cards"></script>
+  <script src="js/uno-room.js?v=20260819cards"></script>
+</body>
+</html>

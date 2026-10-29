@@ -390,7 +390,7 @@ body.cd-room { height: 100dvh; overflow: hidden; display: flex; flex-direction: 
   display: flex; flex-direction: column; gap: 6px;
 }
 .cd-log {
-  flex: 1 1 auto; min-height: 64px;
+  flex: 1 1 auto; min-height: 0;
   display: flex; flex-direction: column; gap: 4px;
   overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
 }
@@ -578,7 +578,7 @@ body.cd-room { height: 100dvh; overflow: hidden; display: flex; flex-direction: 
 
 /* 矮屏（iPhone SE 竖向空间紧）：中央区压一压，保证操作区不被挤掉 */
 @media (max-height: 700px) {
-  .cd-field { padding: 10px 10px 8px; }
-  .cd-log { min-height: 56px; }
+  .cd-field { padding: 4px 10px 2px; }
+  .cd-log { min-height: 0; }
   .cd-stage.is-waiting .cd-wait { bottom: 124px; }
 }

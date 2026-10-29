@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>群友牌局 · 一起打牌</title>
+  <script src="/assets-theme/boot.js"></script>
+  <script src="/assets-theme/icons.js"></script>
+  <link rel="stylesheet" href="/assets-theme/base.css">
+  <link rel="stylesheet" href="cards.css?v=20261029fix5">
+  <link rel="stylesheet" href="party.css?v=20261029fill">
+</head>
+<body class="party-page">
+  <div class="cn-aurora"></div>
+  <main class="party" id="party">
+    <div class="party-top">
+      <span class="cd-eyebrow">群友牌局</span>
+      <button class="party-icon" id="p-share" type="button" aria-label="分享链接"></button>
+    </div>
+
+    <section class="cn-card party-hero">
+      <div class="party-kicker"><span id="p-game">桌游</span><span class="party-dot"></span><span id="p-code">——</span></div>
+      <h1 id="p-title">正在给出牌桌…</h1>
+      <p class="party-sub" id="p-sub">马上就好</p>
+      <div class="party-people" id="p-people"></div>
+    </section>
+
+    <section class="cn-card party-seat" id="p-seat">
+      <label class="party-label" for="p-name">你的昵称</label>
+      <input id="p-name" maxlength="16" autocomplete="nickname" enterkeyhint="go" placeholder="起个名字就上桌">
+      <button class="party-main" id="p-join" type="button"><span id="p-join-text">一键入座</span></button>
+      <p class="party-note" id="p-note">不用注册，点一下就能打</p>
+    </section>
+
+    <section class="party-wait" id="p-wait" hidden>
+      <p><strong id="p-wait-title">你已入座</strong><span id="p-wait-sub">等群友到来</span></p>
+      <button class="party-main" id="p-start" type="button" hidden>开始牌局</button>
+      <p class="party-note" id="p-wait-note"></p>
+      <button class="party-quiet" id="p-leave" type="button" hidden>离开这桌</button>
+    </section>
+
+    <section class="party-fill" id="p-fill" hidden></section>
+
+    <button class="party-link" id="p-copy" type="button">
+      <span class="party-link-ic" id="p-link-ic"></span>
+      <span class="tx"><span class="k">把牌桌发到群里</span><span class="n" id="p-link-sub">复制邀请链接</span></span>
+      <span class="chev" id="p-link-chev"></span>
+    </button>
+
+    <p class="party-foot">MaiBot 已在牌桌 · 出牌直接点牌</p>
+  </main>
+
+  <div class="party-toast" id="p-toast" role="status" aria-live="polite"></div>
+  <script src="js/api.js?v=20261029ai2"></script>
+  <script src="js/ui.js?v=20261028party"></script>
+  <script src="js/party.js?v=20261029fill2"></script>
+</body>
+</html>

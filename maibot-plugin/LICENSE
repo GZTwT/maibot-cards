@@ -1,0 +1,18 @@
+MaiBot 牌桌（MaiBot 插件）
+Copyright (c) 2026 GZTwT
+上游：Copyright (c) 2026 Cu & Lunedì
+
+This work is licensed under the Creative Commons Attribution 4.0
+International License. To view a copy of this license, visit
+https://creativecommons.org/licenses/by/4.0/legalcode
+
+上游项目：https://github.com/29-Cu/bisca （CC-BY-4.0）
+牌桌前端、游戏引擎、牌桌服务与内置服务（bisca_server/）来自该仓库。
+
+本仓库在此基础上二次开发，修改部分：
+- MaiBot 插件层（plugin.py、config.py、server_runtime.py、tunnel.py）与插件配置页
+- 群聊开桌、聊天桥、牌桌/赛果写回群记忆
+- party 开桌页、斗地主与炸金花 AI 策略（ddz-strategy.cjs、zjh-strategy.cjs）
+- 内置服务打包与自检工具（bisca_server/、tools/）
+
+本仓库修改部分同样以 CC-BY-4.0 发布，转载或再分发请保留以上署名。

@@ -12,7 +12,8 @@
   <script src="/assets-theme/boot.js"></script>
   <script src="/assets-theme/icons.js"></script>
   <link rel="stylesheet" href="/assets-theme/base.css">
-  <link rel="stylesheet" href="cards.css?v=20260819cards">
+  <link rel="stylesheet" href="cards.css?v=20261029fix5">
+  <link rel="stylesheet" href="party.css?v=20261028party">
 </head>
 <body>
   <div class="cn-aurora"></div>
@@ -60,6 +61,12 @@
       </details>
 
       <button class="cd-btn cd-btn--primary cd-btn--wide" id="lb-create">建房间并入座</button>
+      <button class="lb-party-btn" id="lb-party" type="button">
+        <span class="ic" id="lb-ic-party"></span>
+        <span class="tx"><span class="k">群聊开桌 · 和 MaiBot 一起打</span>
+          <span class="n">生成一条链接，粘到群里，群友点开就入座</span></span>
+        <span class="chev" id="lb-party-chev"></span>
+      </button>
     </section>
 
     <section>
@@ -71,8 +78,8 @@
     </section>
   </div>
 
-  <script src="js/api.js?v=20260819cards"></script>
+  <script src="js/api.js?v=20261029ai2"></script>
   <script src="js/ui.js?v=20260819cards"></script>
-  <script src="js/lobby.js?v=20260819cards"></script>
+  <script src="js/lobby.js?v=20261028party"></script>
 </body>
 </html>

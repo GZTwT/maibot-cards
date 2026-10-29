@@ -1,0 +1,51 @@
+{
+  "manifest_version": 2,
+  "version": "1.2.0",
+  "name": "MaiBot 牌桌",
+  "description": "MaiBot 牌桌插件：群里发「炸金花 / 斗地主 / UNO」就能开桌，自带牌桌服务与 node 运行时，装完即用，MaiBot 自动入座出牌并在牌桌里接话",
+  "author": {
+    "name": "GZTwT",
+    "url": "https://github.com/GZTwT"
+  },
+  "license": "CC-BY-4.0",
+  "urls": {
+    "repository": "https://github.com/GZTwT/maibot-cards",
+    "homepage": "https://github.com/GZTwT/maibot-cards",
+    "documentation": "https://github.com/GZTwT/maibot-cards/blob/main/maibot-plugin/README.md",
+    "issues": "https://github.com/GZTwT/maibot-cards/issues"
+  },
+  "host_application": {
+    "min_version": "0.10.2",
+    "max_version": "1.99.99"
+  },
+  "sdk": {
+    "min_version": "2.3.0",
+    "max_version": "2.99.99"
+  },
+  "dependencies": [
+    {
+      "type": "python_package",
+      "name": "aiohttp",
+      "version_spec": ">=3.8.0"
+    },
+    {
+      "type": "python_package",
+      "name": "nodejs-wheel-binaries",
+      "version_spec": ">=20.0.0,<25.0.0"
+    }
+  ],
+  "capabilities": [
+    "send.text",
+    "config.get",
+    "llm.generate",
+    "maisaka.context.append",
+    "maisaka.reply.generate"
+  ],
+  "i18n": {
+    "default_locale": "zh-CN",
+    "supported_locales": [
+      "zh-CN"
+    ]
+  },
+  "id": "github.GZTwT.maibot-cards"
+}

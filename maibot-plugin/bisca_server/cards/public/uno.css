@@ -1,0 +1,276 @@
+/* Bisca 棋牌室 —— UNO 专属样式
+ * 通用件（按钮/弹层/toast/座位条/聊天/计分板/总榜）全在 cards.css，这儿**只放 UNO 自己的**：
+ * 彩色牌面、场面中央（顶牌 + 色环 + 方向）、手牌横滚、选色弹层、UNO! 徽标。
+ * 铁律照旧：没有裸色值，一切走主题 token；手机优先，375px 可玩。
+ */
+
+/* ═════════ 四色语义别名 ═════════
+ * 主题只有一套 oklch token，没有「红绿蓝黄」这种具象色，所以在这里挂一层语义别名，
+ * 挑色相最接近的现成 token（换主题/亮暗自动跟着走，不写死任何色值）：
+ *   R 红 → --danger      (hue 22，主题里唯一的红)
+ *   G 绿 → --ink      (hue 172，青绿；主题里最靠近绿的一支)
+ *   B 蓝 → --shared      (hue 250，蓝紫)
+ *   Y 黄 → --layer-daily (hue 85，金黄；记忆层色板里唯一的暖黄)
+ * 四个色相 22/85/172/250 彼此拉得够开；再加左上角 R/G/B/Y 字母做**双编码**，色盲也分得清。
+ * 牌面不拿这些色直接当底（亮暗主题下明度差太大），一律 color-mix 兑进 surface 当色调，
+ * 大字用 --text-strong，对比度两套主题都稳。
+ */
+.cd-room {
+  --uno-r: var(--danger);
+  --uno-g: var(--ink);
+  --uno-b: var(--shared);
+  --uno-y: var(--layer-daily);
+}
+
+/* 每张牌/每个色块只认 --uno-c，具体是哪一色由这几条选择器灌进去
+ * （选择器带上宿主类，别让裸 .is-r 之类去撞共享骨架里的状态类） */
+.uno-card.is-r, .uno-pickbtn.is-r { --uno-c: var(--uno-r); }
+.uno-card.is-g, .uno-pickbtn.is-g { --uno-c: var(--uno-g); }
+.uno-card.is-b, .uno-pickbtn.is-b { --uno-c: var(--uno-b); }
+.uno-card.is-y, .uno-pickbtn.is-y { --uno-c: var(--uno-y); }
+.uno-ring[data-color="R"] { --uno-c: var(--uno-r); }
+.uno-ring[data-color="G"] { --uno-c: var(--uno-g); }
+.uno-ring[data-color="B"] { --uno-c: var(--uno-b); }
+.uno-ring[data-color="Y"] { --uno-c: var(--uno-y); }
+.uno-ring { --uno-c: var(--border); }         /* 还没定色时的兜底 */
+
+/* ═════════ 牌面 ═════════ */
+
+.uno-card {
+  position: relative; flex: none;
+  width: 52px; height: 76px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    linear-gradient(158deg,
+      color-mix(in oklab, var(--uno-c) 46%, var(--surface-2)),
+      color-mix(in oklab, var(--uno-c) 22%, var(--surface-2)));
+  border: 1px solid color-mix(in oklab, var(--uno-c) 62%, var(--border));
+  box-shadow: 0 2px 9px rgb(0 0 0 / .26);
+  transition: transform .13s ease, opacity .18s ease, box-shadow .18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+/* UNO 的招牌白椭圆：一层极淡的斜置光斑，不参与对比度 */
+.uno-card::before {
+  content: ''; position: absolute; inset: 6px 3px;
+  border-radius: 50%; transform: rotate(-22deg);
+  background: color-mix(in oklab, var(--text-strong) 9%, transparent);
+  pointer-events: none;
+}
+.uno-card .ltr {
+  position: absolute; left: 5px; top: 3px; z-index: 2;
+  font-size: 10px; font-weight: 800; letter-spacing: .04em;
+  color: color-mix(in oklab, var(--uno-c) 68%, var(--text-strong));
+}
+.uno-card .glyph {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 25px; font-weight: 800; line-height: 1;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+.uno-card .glyph svg { display: block; }
+.uno-card .glyph.is-sm { font-size: 17px; }         /* +2 这种两字符的 */
+
+/* 万能牌：黑底（主题里的深面）+ 四色角标 */
+.uno-card.is-wild {
+  background: linear-gradient(158deg, var(--surface-3), var(--panel-solid));
+  border-color: var(--border-soft);
+}
+.uno-card.is-wild::before { background: color-mix(in oklab, var(--text-strong) 5%, transparent); }
+.uno-card.is-wild .corner {
+  position: absolute; left: 4px; top: 4px; z-index: 2;
+  width: 13px; height: 13px;
+}
+.uno-card.is-wild .glyph { flex-direction: column; gap: 3px; }
+.uno-card.is-wild .glyph b { font-size: 15px; font-weight: 800; letter-spacing: -.02em; }
+
+/* 四色田字（角标 / 牌心两种尺寸都用它） */
+.uno-quad { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5px; width: 100%; height: 100%; }
+.uno-quad i { display: block; border-radius: 2px; }
+.uno-quad i:nth-child(1) { background: var(--uno-r); }
+.uno-quad i:nth-child(2) { background: var(--uno-b); }
+.uno-quad i:nth-child(3) { background: var(--uno-y); }
+.uno-quad i:nth-child(4) { background: var(--uno-g); }
+.uno-quad--mid { width: 24px; height: 24px; gap: 2.5px; }
+.uno-quad--mid i { border-radius: 3px; }
+
+/* 手牌上的三态：可出 / 不可出 / 正在发的那张 */
+.uno-card.is-hot {
+  box-shadow: 0 2px 9px rgb(0 0 0 / .26),
+              0 0 0 1.5px color-mix(in oklab, var(--uno-c) 70%, transparent),
+              0 0 16px color-mix(in oklab, var(--uno-c) 34%, transparent);
+}
+.uno-card.is-wild.is-hot {
+  box-shadow: 0 2px 9px rgb(0 0 0 / .26), 0 0 0 1.5px var(--accent-line), 0 0 16px var(--accent-wash);
+}
+.uno-card.is-dead { opacity: .32; filter: saturate(.35); }
+.uno-card[disabled] { pointer-events: none; }
+.uno-card.is-hot:active { transform: translateY(-5px) scale(1.03); }
+
+/* 大卡（弃牌堆顶牌） */
+.uno-card.is-big { width: 88px; height: 126px; border-radius: 15px; }
+.uno-card.is-big::before { inset: 10px 5px; }
+.uno-card.is-big .ltr { left: 8px; top: 6px; font-size: 13px; }
+.uno-card.is-big .glyph { font-size: 44px; }
+.uno-card.is-big .glyph.is-sm { font-size: 30px; }
+.uno-card.is-big.is-wild .corner { left: 7px; top: 7px; width: 18px; height: 18px; }
+.uno-card.is-big.is-wild .glyph b { font-size: 24px; }
+.uno-card.is-big.is-wild .uno-quad--mid { width: 38px; height: 38px; }
+
+/* ═════════ 场面中央 ═════════ */
+
+.uno-table {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  width: 100%; padding: 2px 0 1px;
+}
+.uno-discard {
+  flex: none; display: flex; align-items: center; justify-content: center;
+  width: 88px; height: 126px;
+}
+.uno-discard .uno-card { animation: unoDrop .28s cubic-bezier(.2, .9, .3, 1.1) both; }
+@keyframes unoDrop { from { opacity: 0; transform: translateY(-16px) rotate(-8deg) scale(.88); } }
+.uno-discard .empty {
+  width: 88px; height: 126px; border-radius: 15px;
+  border: 1px dashed var(--border); color: var(--text-faint); font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.uno-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; min-width: 0; }
+
+/* 当前生效颜色：万能牌指定颜色后，顶牌和这里可能不同色 —— **以这里为准** */
+.uno-ring {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 11px 5px 6px; border-radius: 99px;
+  background: color-mix(in oklab, var(--uno-c) 14%, var(--surface-2));
+  border: 1px solid color-mix(in oklab, var(--uno-c) 55%, var(--border));
+}
+.uno-ring .sw {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--uno-c);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--uno-c) 55%, transparent);
+}
+.uno-ring .lt {
+  font-size: 11px; font-weight: 800; letter-spacing: .06em;
+  color: color-mix(in oklab, var(--uno-c) 62%, var(--text-strong));
+}
+.uno-ring .nm { font-size: 12px; font-weight: 700; color: var(--text-strong); }
+
+/* 方向：⟳/⟲ 一个 SVG 镜像着用，reverse 时转半秒 */
+.uno-dir { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-mute); }
+.uno-dir .ic { display: flex; color: var(--accent); transition: transform .28s ease; }
+.uno-dir[data-dir="-1"] .ic { transform: scaleX(-1); }
+.uno-dir.is-flip svg { animation: unoSpin .5s cubic-bezier(.3, .85, .3, 1) both; }
+@keyframes unoSpin { from { transform: rotate(-180deg); } to { transform: rotate(0); } }
+
+.uno-deck { display: flex; align-items: baseline; gap: 4px; font-size: 10.5px; color: var(--text-faint); }
+.uno-deck b { font-size: 14px; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+
+/* ═════════ 座位卡上的 UNO! 徽标 ═════════ */
+
+.cd-seat.has-uno .tail { padding-right: 44px; }
+.uno-tag {
+  position: absolute; right: 8px; bottom: 7px; z-index: 3;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .1em;
+  padding: 2px 7px; border-radius: 99px;
+  background: var(--danger); color: var(--bg);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--danger) 46%, transparent);
+  animation: unoPop .32s cubic-bezier(.2, .9, .3, 1.4) both, unoPulse 1.5s .32s ease-in-out infinite;
+}
+@keyframes unoPop { from { opacity: 0; transform: scale(.4) rotate(-12deg); } }
+@keyframes unoPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.11); } }
+
+/* ═════════ 手牌（底部横滚，按颜色分组）═════════ */
+
+.uno-handzone { padding: 8px 12px 0; }
+.uno-hand-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 0 2px 6px; font-size: 11.5px; color: var(--text-mute);
+}
+.uno-hand-head b { font-size: 13.5px; font-weight: 800; color: var(--text-strong); }
+.uno-hand-head .hint {
+  flex: 1; min-width: 0; text-align: right; font-size: 11px; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.uno-hand-head .hint.is-bad { color: var(--danger); }
+.uno-hand {
+  display: flex; align-items: flex-end; gap: 5px;
+  padding: 5px 2px 10px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.uno-hand::-webkit-scrollbar { display: none; }
+/* 换一色就留一道缝，一眼看清分组 */
+.uno-hand .uno-card.is-grp { margin-left: 13px; }
+.uno-hand .uno-card:first-child { margin-left: 0; }
+.uno-hand .empty { font-size: 12px; color: var(--text-faint); padding: 28px 4px; }
+
+/* 摸牌 pending 那条通知里的两个按钮 */
+.uno-notice-acts { display: flex; gap: 8px; margin-top: 8px; }
+
+/* ═════════ 选色弹层 ═════════ */
+
+.uno-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.uno-pickbtn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 88px; border-radius: 16px;
+  background:
+    linear-gradient(158deg,
+      color-mix(in oklab, var(--uno-c) 34%, var(--surface-2)),
+      color-mix(in oklab, var(--uno-c) 16%, var(--surface-2)));
+  border: 1px solid color-mix(in oklab, var(--uno-c) 60%, var(--border));
+  transition: transform .12s ease;
+}
+.uno-pickbtn:active { transform: scale(.96); }
+.uno-pickbtn .sw {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--uno-c);
+  box-shadow: 0 0 16px color-mix(in oklab, var(--uno-c) 50%, transparent);
+}
+.uno-pickbtn b { font-size: 14px; font-weight: 800; color: var(--text-strong); }
+.uno-pickbtn i {
+  font-size: 10px; font-style: normal; font-weight: 800; letter-spacing: .16em;
+  color: color-mix(in oklab, var(--uno-c) 66%, var(--text-strong));
+}
+
+/* ═════════ 本局结算卡 ═════════ */
+
+.uno-result .win {
+  display: flex; align-items: center; gap: 8px; margin-top: 14px;
+  padding: 11px 13px; border-radius: 14px;
+  border: 1px solid var(--accent-line); background: var(--accent-wash);
+}
+.uno-result .win .ic { display: flex; color: var(--accent); flex: none; }
+.uno-result .win .nm { flex: 1; min-width: 0; font-size: 14px; font-weight: 800; color: var(--text-strong); }
+.uno-result .win .gn { font-size: 16px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.uno-result .rows { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+.uno-result .rw {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px; border-radius: 12px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+}
+.uno-result .rw.is-me { border-color: var(--accent-line); }
+.uno-result .rw .nm { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uno-result .rw .lost { font-size: 11.5px; color: var(--text-mute); }
+.uno-result .rw .tot { width: 46px; text-align: right; font-size: 14px; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+
+/* ═════════ 矮屏 / 宽屏 / 无障碍 ═════════ */
+
+@media (max-height: 700px) {
+  .uno-card.is-big { width: 72px; height: 104px; }
+  .uno-card.is-big::before { inset: 8px 4px; }
+  .uno-card.is-big .glyph { font-size: 36px; }
+  .uno-card.is-big .glyph.is-sm { font-size: 25px; }
+  .uno-card.is-big.is-wild .uno-quad--mid { width: 30px; height: 30px; }
+  .uno-discard, .uno-discard .empty { width: 72px; height: 104px; }
+  .uno-card { width: 46px; height: 68px; }
+  .uno-card .glyph { font-size: 22px; }
+}
+
+@media (min-width: 900px) {
+  .uno-handzone { padding-left: 20px; padding-right: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uno-card, .uno-discard .uno-card, .uno-tag { animation: none; }
+  .uno-dir.is-flip svg { animation: none; }
+}

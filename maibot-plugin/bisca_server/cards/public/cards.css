@@ -1,0 +1,584 @@
+/* Bisca 棋牌室 —— 共享基底样式（大厅 + 三张牌桌页共用）
+ * 地基是 /assets-theme 三件套（boot.js 注入 oklch token、base.css 出 .cn-aurora/.cn-card/.cn-glass）。
+ * 这里**只放通用件**：按钮 / 卡片 / 弹层 / toast / 开关 / 聊天件 / 座位条骨架 / 计分板 / 总榜。
+ * 每个游戏自己的牌面、牌桌布局、专属动效写在各自的 ddz.css / zjh.css / uno.css 里，别往这儿塞。
+ * **没有任何裸色值**：一切颜色走主题 token，换主题/亮暗自动跟。
+ * 手机优先：一切按 375px 排，宽屏只是把边距放开。
+ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* 各页大量用 hidden 属性开关面板，这些面板自身是 flex/grid，得压过去 */
+[hidden] { display: none !important; }
+
+body {
+  color: var(--text);
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  font: inherit; color: inherit; background: none; border: none;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+
+input {
+  font: inherit; color: var(--text-strong);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px; padding: 10px 12px; width: 100%; outline: none;
+}
+input:focus { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-wash); }
+input::placeholder { color: var(--text-faint); }
+
+/* ═════════ 通用小件 ═════════ */
+
+.cd-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 46px; padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 15px; font-weight: 600; white-space: nowrap;
+  transition: transform .12s ease, opacity .15s ease, background .15s ease;
+}
+.cd-btn:active { transform: scale(.97); }
+.cd-btn[disabled] { opacity: .34; pointer-events: none; }
+.cd-btn--primary {
+  background: var(--accent-grad); color: var(--accent-on);
+  border-color: transparent; box-shadow: var(--glow-shadow);
+}
+.cd-btn--ghost { background: transparent; color: var(--text-mute); }
+.cd-btn--danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+.cd-btn--sm { min-height: 34px; padding: 0 12px; font-size: 12px; border-radius: 11px; }
+.cd-btn--wide { flex: 1; }
+.cd-btn svg { flex: none; }
+
+.cd-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+
+.cd-chip {
+  font-size: 11px; padding: 4px 9px; border-radius: 10px;
+  border: 1px solid var(--border-faint); color: var(--text-faint); background: var(--surface-2);
+}
+.cd-chip.is-on { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+
+.cd-pill {
+  font-size: 11px; padding: 3px 8px; border-radius: 99px;
+  background: var(--surface-2); border: 1px solid var(--border-faint); color: var(--text-mute);
+}
+
+.cd-tag {
+  font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 99px;
+  border: 1px solid var(--border-soft); color: var(--text-mute); background: var(--surface-2);
+}
+.cd-tag.is-open { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+.cd-tag.is-live { color: var(--ink); border-color: var(--ink); background: var(--ink-wash); }
+.cd-tag.is-done { color: var(--text-faint); }
+/* 游戏名徽标：房间卡上第一眼要认出这是哪个游戏 */
+.cd-tag--game { color: var(--shared); border-color: var(--shared); background: var(--shared-wash); }
+
+.cd-empty { text-align: center; color: var(--text-faint); font-size: 13px; padding: 24px 0; }
+.cd-dim { color: var(--text-faint); }
+
+.cd-field-row { display: flex; flex-direction: column; gap: 7px; }
+.cd-field-row > .k { font-size: 12px; color: var(--text-mute); font-weight: 600; }
+
+/* toast —— 服务端 400 的中文错误直接扔这儿 */
+.cd-toasts {
+  position: fixed; left: 0; right: 0; top: 14px; z-index: 9500;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  pointer-events: none; padding: 0 16px;
+}
+.cd-toast {
+  max-width: 440px; padding: 10px 15px; border-radius: 14px;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 8px 30px rgb(0 0 0 / .34);
+  color: var(--text-strong); font-size: 13px; line-height: 1.5;
+  animation: cdToastIn .22s ease both;
+}
+.cd-toast.is-bad { border-color: var(--danger); color: var(--danger); }
+.cd-toast.is-out { animation: cdToastOut .2s ease both; }
+@keyframes cdToastIn { from { opacity: 0; transform: translateY(-10px); } }
+@keyframes cdToastOut { to { opacity: 0; transform: translateY(-8px); } }
+
+/* 弹层 / 底部抽屉 */
+.cd-scrim {
+  position: fixed; inset: 0; z-index: 9200;
+  background: var(--scrim, rgb(0 0 0 / .55));
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: cdFade .2s ease both;
+}
+.cd-scrim.is-sheet { align-items: flex-end; padding: 0; }
+@keyframes cdFade { from { opacity: 0; } }
+
+.cd-modal, .cd-sheet {
+  width: 100%;
+  /* 磨砂面 + 一层中性不透明底：牌桌文字多，纯玻璃会透上来抢戏 */
+  background: color-mix(in srgb, var(--panel-solid) 76%, var(--glass-surface));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 14px 40px rgb(0 0 0 / .45);
+  color: var(--text);
+}
+.cd-modal {
+  max-width: 380px; border-radius: 22px; padding: 18px;
+  max-height: 84dvh; overflow-y: auto;
+  animation: cdPop .24s cubic-bezier(.2, .9, .3, 1.2) both;
+}
+.cd-sheet {
+  max-width: 520px; margin: 0 auto;
+  border-radius: 22px 22px 0 0; border-bottom: none;
+  /* 底部不写 env(safe-area-inset-bottom)（iOS PWA 铁律），靠内边距留白 */
+  padding: 10px 16px 30px;
+  max-height: 82dvh; overflow-y: auto;
+  animation: cdSheetIn .26s cubic-bezier(.2, .9, .3, 1.05) both;
+}
+@keyframes cdPop { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+@keyframes cdSheetIn { from { transform: translateY(100%); } }
+.cd-modal h2, .cd-sheet h2 { font-size: 17px; font-weight: 700; color: var(--text-strong); }
+.cd-modal .sub, .cd-sheet .sub { font-size: 12.5px; color: var(--text-dim); margin-top: 5px; line-height: 1.6; }
+.cd-modal .cd-field-row { margin-top: 16px; }
+.cd-modal-acts { display: flex; gap: 8px; margin-top: 18px; }
+.cd-modal-acts .cd-btn:last-child { flex: 1; }
+.cd-modal-note { margin-top: 10px; font-size: 12.5px; line-height: 1.6; color: var(--text-dim); }
+.cd-sheet-grip { width: 38px; height: 4px; border-radius: 99px; background: var(--border); margin: 2px auto 12px; }
+.cd-sheet-acts { display: flex; gap: 8px; margin-top: 16px; }
+.cd-sheet-acts .cd-btn { flex: 1; }
+
+/* 开关 */
+.cd-toggle {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  min-height: 52px; padding: 9px 12px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+  transition: border-color .18s ease, background .18s ease;
+}
+.cd-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.cd-toggle .tx { flex: 1; min-width: 0; }
+.cd-toggle .k { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.cd-toggle .n { display: block; font-size: 11px; color: var(--text-faint); margin-top: 2px; line-height: 1.4; }
+.cd-toggle .sw {
+  position: relative; flex: none; width: 44px; height: 26px; border-radius: 99px;
+  background: var(--surface-3); border: 1px solid var(--border);
+  transition: background .18s ease, border-color .18s ease;
+}
+.cd-toggle .sw::after {
+  content: ''; position: absolute; left: 2.5px; top: 2px;
+  width: 19px; height: 19px; border-radius: 50%;
+  background: var(--text-mute); transition: transform .18s ease, background .18s ease;
+}
+.cd-toggle.is-on { border-color: var(--accent-line); }
+.cd-toggle.is-on .sw { background: var(--accent-wash); border-color: var(--accent-line); }
+.cd-toggle.is-on .sw::after { transform: translateX(18px); background: var(--accent); }
+
+/* 数值型规则（炸金花的底注 / 初始筹码这种），和开关一条排面 */
+.cd-numrow {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 52px; padding: 9px 12px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+}
+.cd-numrow .tx { flex: 1; min-width: 0; }
+.cd-numrow .k { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.cd-numrow .n { display: block; font-size: 11px; color: var(--text-faint); margin-top: 2px; line-height: 1.4; }
+.cd-numrow input {
+  flex: none; width: 88px; text-align: right; padding: 7px 10px;
+  font-variant-numeric: tabular-nums; font-weight: 700;
+}
+
+/* ═════════ 大厅 ═════════ */
+
+.lobby { max-width: 520px; margin: 0 auto; padding: 16px 16px 28px; display: flex; flex-direction: column; gap: 16px; }
+.lb-head { text-align: center; padding: 8px 0 2px; }
+.lb-head h1 { font-size: 26px; font-weight: 800; color: var(--text-strong); letter-spacing: -.01em; }
+.lb-head p { font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.6; }
+
+.lb-card { padding: 16px 17px; display: flex; flex-direction: column; gap: 13px; }
+.lb-card .hd { display: flex; align-items: center; gap: 9px; color: var(--text-strong); font-size: 15px; font-weight: 700; }
+.lb-card .hd .ic { color: var(--accent); display: flex; }
+
+/* 三选一：一行三个大按钮，375px 也塞得下 */
+.cd-games { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cd-gamepick {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 62px; padding: 8px 6px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+  transition: transform .12s ease, border-color .18s ease, background .18s ease;
+}
+.cd-gamepick:active { transform: scale(.97); }
+.cd-gamepick .k { font-size: 14px; font-weight: 700; color: var(--text); }
+.cd-gamepick .n { font-size: 10.5px; color: var(--text-faint); }
+.cd-gamepick.is-on {
+  border-color: var(--accent-line); background: var(--accent-wash);
+  box-shadow: var(--glow-shadow);
+}
+.cd-gamepick.is-on .k { color: var(--accent); }
+.cd-gamepick.is-down { opacity: .42; pointer-events: none; }
+
+/* 规则折叠面板 */
+.cd-rules { border: 1px solid var(--border-faint); border-radius: 14px; background: var(--surface-2); overflow: hidden; }
+.cd-rules > summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; padding: 11px 13px; min-height: 52px;
+}
+.cd-rules > summary::-webkit-details-marker { display: none; }
+.cd-rules > summary .ic { display: flex; color: var(--accent); flex: none; }
+.cd-rules > summary .tx { flex: 1; min-width: 0; }
+.cd-rules > summary .k { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.cd-rules > summary .n { display: block; font-size: 11px; color: var(--text-faint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-rules > summary .n.is-bad { color: var(--danger); }
+.cd-rules > summary .chev {
+  flex: none; width: 8px; height: 8px; margin-right: 4px;
+  border-right: 1.8px solid var(--text-faint); border-bottom: 1.8px solid var(--text-faint);
+  transform: rotate(45deg); transition: transform .2s ease;
+}
+.cd-rules[open] > summary .chev { transform: rotate(-135deg); }
+.cd-rules-body { display: flex; flex-direction: column; gap: 8px; padding: 2px 10px 12px; }
+#lb-help { width: 100%; margin-top: 10px; }
+
+/* AI 名单分组 */
+.cd-ai-sec { padding: 8px 2px 2px; }
+.cd-ai-sec:first-child { padding-top: 2px; }
+
+.cd-filter { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 2px 10px; }
+.lb-rooms { display: flex; flex-direction: column; gap: 10px; }
+.lb-sec { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; }
+
+.cd-room-card { padding: 14px 15px; display: flex; align-items: center; gap: 12px; transition: transform .14s ease; }
+.cd-room-card:active { transform: scale(.985); }
+.cd-room-card .main { flex: 1; min-width: 0; }
+.cd-room-card .nm { font-size: 15px; font-weight: 700; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-room-card .sub { font-size: 11.5px; color: var(--text-dim); margin-top: 5px; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.cd-room-card .sub .bot { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); }
+.cd-room-card .who { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.cd-room-card .chev { color: var(--text-faint); display: flex; }
+.cd-mine { color: var(--accent); }
+
+/* 大厅卡片上的关房按钮 */
+.cd-room-close {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 11px; margin-left: 4px;
+  color: var(--text-faint); border: 1px solid var(--border-faint); background: var(--surface-2);
+  transition: color .15s ease, border-color .15s ease;
+}
+.cd-room-close:active { color: var(--danger); border-color: var(--danger); }
+
+/* ═════════ 跳转页（room.html：查完 game 就 replace 走）═════════ */
+
+.cd-bounce { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.cd-bounce .box { width: 100%; max-width: 340px; padding: 22px; text-align: center; }
+.cd-bounce h1 { font-size: 18px; font-weight: 700; color: var(--text-strong); margin-top: 8px; }
+.cd-bounce p { font-size: 12.5px; color: var(--text-dim); margin-top: 8px; line-height: 1.6; }
+.cd-bounce p b { color: var(--text-strong); letter-spacing: .1em; }
+.cd-bounce .acts { display: flex; gap: 8px; margin-top: 18px; }
+.cd-bounce .acts .cd-btn { flex: 1; }
+
+/* ═════════ 牌桌外壳骨架（三张牌桌页共用；牌面/布局各自写）═════════ */
+
+body.cd-room { height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+
+/* status-bar=black 时 iOS standalone 已把视口压到状态栏下方，这里不再自己垫 safe-area */
+.cd-top { flex: none; padding: 10px 12px 6px; display: flex; flex-direction: column; gap: 9px; }
+.cd-top-row { display: flex; align-items: center; gap: 10px; }
+.cd-back { display: flex; color: var(--text-mute); padding: 4px; margin: -4px; }
+.cd-title { flex: 1; min-width: 0; }
+.cd-title .nm { font-size: 14.5px; font-weight: 700; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-title .cd { font-size: 10.5px; color: var(--text-faint); letter-spacing: .1em; margin-top: 1px; }
+.cd-iconbtn {
+  flex: none; width: 36px; height: 36px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-mute); border: 1px solid var(--border-faint); background: var(--surface-2);
+}
+.cd-iconbtn:active { transform: scale(.94); }
+.cd-link { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-dim); }
+.cd-link .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 7px var(--ink); }
+.cd-link[data-conn="retry"] .dot, .cd-link[data-conn="polling"] .dot { background: var(--danger); box-shadow: 0 0 7px var(--danger); }
+
+/* 座位条：横滚，每张卡里的内容各游戏自己填（张数 / 筹码 / 地主徽标…） */
+.cd-seats { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; transition: padding-top .18s ease; }
+.cd-seats::-webkit-scrollbar { display: none; }
+.cd-seats.has-bubble { padding-top: 34px; }
+.cd-seat {
+  position: relative; flex: none; min-width: 104px; max-width: 140px;
+  padding: 8px 10px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.cd-seat .top { display: flex; align-items: center; gap: 5px; }
+.cd-seat .top .bot { display: flex; color: var(--ink); flex: none; }
+.cd-seat .nm { font-size: 12px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-seat .cnt { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.cd-seat .cnt b { font-size: 14px; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.cd-seat .cnt .u { font-size: 10px; color: var(--text-faint); }
+.cd-seat .tail { display: flex; align-items: center; gap: 5px; margin-top: 5px; min-height: 16px; }
+.cd-seat .tail .tx { font-size: 10px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-seat.is-turn { border-color: var(--accent-line); background: var(--accent-wash); box-shadow: var(--glow-shadow); }
+.cd-seat.is-passed { opacity: .6; }
+.cd-seat.is-done { opacity: .5; }
+.cd-seat.is-empty { color: var(--text-faint); font-size: 12px; display: flex; align-items: center; justify-content: center; min-height: 62px; }
+
+/* 座位气泡（别人说话时在他卡上飘一下） */
+.cd-bubble {
+  position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 6;
+  width: max-content; max-width: 170px; min-width: 56px;
+  padding: 4px 9px; border-radius: 11px 11px 11px 4px;
+  font-size: 10.5px; line-height: 1.4; color: var(--text-strong);
+  background: color-mix(in srgb, var(--panel-solid) 76%, var(--glass-surface));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 6px 18px rgb(0 0 0 / .3);
+  pointer-events: none;
+  animation: cdBubble 3.5s ease both;
+}
+/* 省略号收在内层，气泡本体不能 overflow:hidden，否则下面那个尖角会被切掉 */
+.cd-bubble .tx { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cd-bubble::after {
+  content: ''; position: absolute; left: 12px; bottom: -5px;
+  width: 8px; height: 8px; transform: rotate(45deg);
+  background: inherit;
+  border-right: 1px solid var(--glow-border); border-bottom: 1px solid var(--glow-border);
+}
+@keyframes cdBubble {
+  0% { opacity: 0; transform: translateY(6px) scale(.92); }
+  8% { opacity: 1; transform: none; }
+  86% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+/* 中央舞台：场面区贴顶，聊天区吃满剩下的高度 */
+.cd-stage {
+  flex: 1; min-height: 0; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 10px; padding: 6px 12px 2px;
+}
+.cd-field {
+  position: relative; flex: 0 0 auto; width: 100%; max-width: 420px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 12px 12px; border-radius: 20px;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 12px 34px rgb(0 0 0 / .34);
+}
+.cd-turn { font-size: 13px; color: var(--text-mute); }
+.cd-turn b { color: var(--text-strong); }
+.cd-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.cd-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px;
+  border: 1px solid var(--border-soft); color: var(--text-mute); background: var(--surface-2);
+}
+.cd-badge.is-hot { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+.cd-badge.is-warn { color: var(--danger); border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+
+/* 流水 + 聊天混排的一条流；输入条**绝不用 position:fixed**（iOS 键盘弹起时 fixed 会漂）*/
+.cd-chatdock {
+  position: relative; z-index: 5;
+  flex: 1 1 auto; min-height: 0;
+  width: 100%; max-width: 420px; min-width: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.cd-log {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+}
+.cd-log::-webkit-scrollbar { display: none; }
+.cd-log .row {
+  flex: 0 0 auto;                     /* 条目多了会被 flex 压成一条缝叠字 */
+  font-size: 11px; line-height: 1.45; color: var(--text-dim);
+  padding: 4px 9px; border-radius: 9px; background: var(--surface-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  animation: cdLogIn .28s ease both;
+}
+.cd-log .row:last-child { color: var(--text-strong); background: var(--accent-wash); }
+@keyframes cdLogIn { from { opacity: 0; transform: translateY(6px); } }
+
+/* 聊天条：名字吃主题高亮色；流水条是单行省略，聊天正文要放开换行 */
+.cd-log .row.is-chat {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 5px 9px;
+  white-space: normal; overflow: visible; text-overflow: clip;
+  color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--border-faint);
+}
+.cd-log .row.is-chat .bot { flex: none; display: inline-flex; align-self: center; color: var(--ink); }
+.cd-log .row.is-chat .who { flex: none; font-weight: 700; color: var(--accent); }
+.cd-log .row.is-chat.is-me .who { color: var(--ink); }
+.cd-log .row.is-chat .tx { flex: 1; min-width: 0; line-height: 1.5; word-break: break-word; }
+
+.cd-chatbar { display: flex; align-items: center; gap: 8px; }
+.cd-chatbar .cd-chatin {
+  flex: 1; min-width: 0;
+  border-radius: 99px; padding: 9px 14px; font-size: 13px;
+}
+.cd-chatsend {
+  flex: none; width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent-on); background: var(--accent-grad);
+  border: 1px solid transparent; box-shadow: var(--glow-shadow);
+  transition: transform .12s ease, opacity .15s ease;
+}
+.cd-chatsend:active { transform: scale(.94); }
+.cd-chatsend[disabled] { opacity: .4; pointer-events: none; }
+
+/* 未开局面板（盖住舞台，但不吃点击——只有中间那张卡吃，聊天输入条照样点得到）*/
+.cd-wait { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; pointer-events: none; }
+.cd-wait .box { width: 100%; max-width: 360px; padding: 20px; display: flex; flex-direction: column; gap: 14px; pointer-events: auto; }
+.cd-wait h2 { font-size: 20px; font-weight: 800; color: var(--text-strong); letter-spacing: .16em; margin-top: 6px; }
+.cd-wait .sub { font-size: 12.5px; color: var(--text-dim); line-height: 1.6; }
+.cd-stage.is-waiting { justify-content: space-between; }
+.cd-stage.is-waiting .cd-wait { bottom: 172px; }
+.cd-seatlist { display: flex; flex-direction: column; gap: 8px; }
+.cd-seatrow { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border-faint); }
+.cd-seatrow .bot { display: flex; color: var(--ink); }
+.cd-seatrow .nm { flex: 1; font-size: 13px; color: var(--text); font-weight: 600; }
+.cd-seatrow .role { font-size: 10.5px; color: var(--text-faint); }
+.cd-rulechips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* 底部：通知条 / 手牌区（各游戏自己填内容）/ 操作区 */
+.cd-bottom {
+  flex: none;
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border-top: 1px solid var(--glow-border);
+}
+.cd-notice {
+  margin: 10px 12px 0; padding: 9px 12px; border-radius: 13px;
+  font-size: 12px; line-height: 1.5; color: var(--text);
+  border: 1px solid var(--accent-line); background: var(--accent-wash);
+}
+.cd-notice b { color: var(--text-strong); }
+.cd-acts {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px 22px;   /* 底部不写 env(safe-area-inset-bottom)（iOS PWA 铁律） */
+}
+.cd-actbar-hint {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  min-height: 46px; padding: 0 4px;
+  font-size: 13px; color: var(--text-mute);
+}
+.cd-actbar-hint b { color: var(--text-strong); }
+.cd-actbar-hint svg { color: var(--ink); }
+.cd-watch {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 11px 16px; border-radius: 99px;
+  border: 1px solid var(--accent-line); background: var(--accent-wash); color: var(--accent);
+  font-size: 13px; font-weight: 700;
+}
+
+/* 场面横幅（清场 / 炸弹 / 反转，一闪而过）*/
+.cd-banner {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 30px; font-weight: 800; letter-spacing: .14em;
+  color: var(--accent); text-shadow: 0 0 24px var(--accent-wash);
+  pointer-events: none; z-index: 6;
+  animation: cdBanner 1.3s cubic-bezier(.2, .9, .3, 1) both;
+}
+.cd-banner.is-alt { color: var(--ink); text-shadow: 0 0 24px var(--ink-wash); }
+.cd-banner.is-bad { color: var(--danger); text-shadow: 0 0 24px color-mix(in srgb, var(--danger) 22%, transparent); }
+@keyframes cdBanner {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -160%) scale(1); }
+}
+
+/* ═════════ 计分板 ═════════ */
+
+.cd-score-head, .cd-score-row { display: flex; align-items: center; gap: 10px; }
+.cd-score-head { margin-top: 14px; padding: 0 12px 6px; font-size: 10.5px; color: var(--text-faint); }
+.cd-score { display: flex; flex-direction: column; gap: 8px; }
+.cd-score-row { padding: 11px 12px; border-radius: 13px; background: var(--surface-2); border: 1px solid var(--border-faint); }
+.cd-score-row.is-me { border-color: var(--accent-line); background: var(--accent-wash); }
+.cd-score-head .nm, .cd-score-row .nm { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 600; color: var(--text-strong); overflow: hidden; }
+.cd-score-row .nm .bot { display: flex; color: var(--ink); }
+.cd-score-head .rk, .cd-score-row .rk { width: 86px; text-align: center; font-size: 11.5px; color: var(--text-mute); }
+.cd-score-head .sc, .cd-score-row .sc { width: 52px; text-align: right; font-size: 15px; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.cd-score-head .sc { font-size: 10.5px; font-weight: 700; color: var(--text-faint); }
+
+/* ═════════ 整场结束总榜 ═════════ */
+
+.cd-over {
+  position: fixed; inset: 0; z-index: 9400; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 24px;
+  /* 全屏一层玻璃，别让底下的牌桌文字透上来跟总榜打架 */
+  background: var(--scrim, rgb(0 0 0 / .72));
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  backdrop-filter: blur(16px) saturate(1.1);
+}
+.cd-over .crown { color: var(--accent); filter: drop-shadow(0 0 18px var(--accent-wash)); animation: cdRise .6s ease both; }
+.cd-over .big { font-size: 24px; font-weight: 800; color: var(--text-strong); text-align: center; animation: cdRise .6s .1s ease both; }
+.cd-over .sub { font-size: 13px; color: var(--text-dim); animation: cdRise .6s .2s ease both; }
+.cd-over-list { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 8px; margin: 4px 0 6px; z-index: 2; }
+.cd-over-list .row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 13px; border-radius: 13px;
+  background: var(--glass-surface); border: 1px solid var(--glow-border);
+  animation: cdRise .5s ease backwards; animation-delay: calc(.25s + var(--i) * .1s);
+}
+.cd-over-list .row.is-me { border-color: var(--accent-line); }
+.cd-over-list .pos { font-size: 13px; font-weight: 800; color: var(--text-faint); width: 14px; }
+.cd-over-list .nm { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; color: var(--text-strong); display: flex; align-items: center; gap: 5px; overflow: hidden; }
+.cd-over-list .nm .bot { display: flex; color: var(--ink); }
+.cd-over-list .sc { font-size: 16px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+.cd-over .cd-btn { z-index: 2; animation: cdRise .6s .4s ease both; }
+@keyframes cdRise { from { opacity: 0; transform: translateY(18px); } }
+
+.cd-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.cd-confetti i {
+  position: absolute; top: -6vh; width: 8px; height: 13px; border-radius: 2px;
+  background: var(--accent); animation: cdFall linear infinite;
+}
+.cd-confetti i:nth-child(3n+1) { background: var(--ink); }
+.cd-confetti i:nth-child(3n+2) { background: var(--shared); }
+@keyframes cdFall {
+  0% { transform: translateY(-10vh) rotate(0); opacity: 0; }
+  8% { opacity: 1; }
+  100% { transform: translateY(112vh) rotate(760deg); opacity: .9; }
+}
+
+/* ═════════ 玩法说明抽屉 ═════════ */
+
+.cd-help h2 { margin-bottom: 4px; }
+.cd-help-sec { margin-top: 14px; }
+.cd-help-sec h3 { font-size: 13.5px; font-weight: 700; color: var(--accent); margin-bottom: 5px; }
+.cd-help-sec p { font-size: 13px; line-height: 1.75; color: var(--text-dim); }
+.cd-help-sec p + p { margin-top: 6px; }
+.cd-help-sec b { color: var(--text-strong); font-weight: 650; }
+
+/* ═════════ 无障碍 / 宽屏 / 矮屏 ═════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-confetti { display: none; }
+  .cd-bubble, .cd-seats { animation: none; transition: none; }
+  .cd-over-list .row { animation: none; }
+}
+
+@media (min-width: 900px) {
+  .cd-top { padding-left: 20px; padding-right: 20px; }
+  .cd-acts { padding-left: 20px; padding-right: 20px; justify-content: center; }
+  .cd-acts .cd-btn--wide { flex: none; min-width: 160px; }
+  .cd-notice { margin-left: 20px; margin-right: 20px; }
+}
+
+/* 矮屏（iPhone SE 竖向空间紧）：中央区压一压，保证操作区不被挤掉 */
+@media (max-height: 700px) {
+  .cd-field { padding: 4px 10px 2px; }
+  .cd-log { min-height: 0; }
+  .cd-stage.is-waiting .cd-wait { bottom: 124px; }
+}

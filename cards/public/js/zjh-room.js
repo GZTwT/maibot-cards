@@ -386,10 +386,6 @@
     if (m && !m.folded && !m.out && view.phase === 'betting' && !m.looked) {
       bs += '<span class="cd-badge is-hot">' + eyeShut(13) + '你闷着 · 跟注半价</span>';
     }
-    var outs = players().filter(function (p) { return p.out; });
-    if (outs.length) {
-      bs += '<span class="cd-badge is-warn">' + outs.length + ' 人轮空</span>';
-    }
     if (view.rules && view.rules.special_235) {
       bs += '<span class="cd-badge">235 克豹子</span>';
     }
@@ -552,12 +548,6 @@
     var m = me();
     if (!m) { el.hidden = true; return; }
 
-    if (m.out) {
-      el.hidden = false;
-      el.innerHTML = '你只剩 <b>' + num(m.chips) + '</b> 筹码，不够底注 <b>' +
-        ((view.rules && view.rules.base_bet) || 0) + '</b>，<b>本局轮空</b>——等下一局。';
-      return;
-    }
     if (view.phase === 'betting' && m.allin) {
       el.hidden = false;
       el.innerHTML = '你已经<b>全押</b>（投了 ' + num(m.bet) + '），接下来只能等摊牌。';
@@ -568,13 +558,8 @@
       el.innerHTML = '你这局<b>弃牌</b>了，投出去的 ' + num(m.bet) + ' 不退，等这局打完。';
       return;
     }
-    var outs = players().filter(function (p) { return p.out; });
-    if (outs.length && view.phase === 'betting') {
-      el.hidden = false;
-      el.innerHTML = outs.map(function (p) { return esc(p.name || ''); }).join('、') +
-        ' 筹码不够底注，<b>本局轮空</b>。';
-      return;
-    }
+    // 别人轮空不占整条通知：座位卡 + “X 人轮空”徽标已经说清楚了，
+    // 460px 矮屏上再塞一行会把聊天区和手牌顶重叠。
     el.hidden = true;
   }
 

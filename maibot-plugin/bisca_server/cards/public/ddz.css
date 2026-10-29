@@ -1,0 +1,287 @@
+/* Bisca 棋牌室 · 斗地主 —— 只放这张牌桌自己的东西
+ * 通用件（按钮/卡片/弹层/toast/座位条/聊天/计分板/总榜/横幅）全在 cards.css 的 cd-* 骨架里，
+ * 这儿一行都不复制。本文件负责：牌面、手牌扇面、底牌区、叫分件、地主件、炸弹动效、名次卡。
+ * **没有任何裸色值**：牌面红黑也吃主题层（红花色 = --danger，黑花色 = --text-strong，
+ * 王 = --accent / 大王 = --danger），换主题、切亮暗自动跟。
+ * 手机优先：一切按 375px 排，345px 也要能选牌出牌。
+ */
+
+:root {
+  /* 语义别名，全部指回主题 token —— 想改牌面观感只动这五行 */
+  --ddz-face: var(--surface-3);
+  --ddz-face-line: var(--border-soft);
+  --ddz-red: var(--danger);
+  --ddz-black: var(--text-strong);
+  --ddz-joker: var(--accent);
+}
+
+/* ═════════ 牌（纯 CSS，无图片）═════════ */
+
+.ddz-card {
+  position: relative; flex: none; display: block;
+  width: 54px; height: 76px; padding: 5px 6px;
+  border-radius: 9px;
+  background: var(--ddz-face);
+  border: 1px solid var(--ddz-face-line);
+  box-shadow: inset 0 1px 0 var(--border-soft), 0 3px 10px rgb(0 0 0 / .34);
+  color: var(--ddz-black); text-align: left;
+  transition: transform .16s cubic-bezier(.2, .9, .3, 1.3), box-shadow .16s ease, opacity .2s ease;
+}
+.ddz-card .r { display: block; font-size: 19px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+.ddz-card .s { display: block; font-size: 13px; line-height: 1.1; margin-top: 1px; }
+.ddz-card .c { position: absolute; right: 5px; bottom: 4px; font-size: 24px; line-height: 1; opacity: .38; }
+.ddz-card.is-tone-red { color: var(--ddz-red); }
+.ddz-card.is-tone-black { color: var(--ddz-black); }
+/* 王：小王主题色、大王红（引擎里 X1 是小王、X2 是大王，别按大富豪的记） */
+.ddz-card.is-tone-joker {
+  color: var(--ddz-joker); border-color: var(--accent-line);
+  box-shadow: inset 0 0 14px var(--accent-wash), 0 3px 10px rgb(0 0 0 / .34);
+}
+.ddz-card.is-tone-joker .r { font-size: 24px; margin-top: 12px; text-align: center; }
+.ddz-card.is-tone-joker .s { font-size: 8px; letter-spacing: .16em; text-align: center; margin-top: 4px; }
+.ddz-card.is-joker-big {
+  color: var(--ddz-red);
+  border-color: color-mix(in srgb, var(--ddz-red) 45%, transparent);
+  box-shadow: inset 0 0 14px color-mix(in srgb, var(--ddz-red) 14%, transparent), 0 3px 10px rgb(0 0 0 / .34);
+}
+.ddz-card.is-on {
+  transform: translateY(-18px);
+  box-shadow: 0 0 0 2px var(--accent), var(--glow-shadow), 0 12px 22px rgb(0 0 0 / .45);
+}
+.ddz-card.is-dead { opacity: .3; }
+
+/* 小号牌：底牌明示区用 */
+.ddz-card--sm { width: 32px; height: 45px; padding: 3px 4px; border-radius: 7px; }
+.ddz-card--sm .r { font-size: 12px; }
+.ddz-card--sm .s { font-size: 9px; }
+.ddz-card--sm .c { display: none; }
+.ddz-card--sm.is-tone-joker .r { font-size: 14px; margin-top: 6px; }
+.ddz-card--sm.is-tone-joker .s { font-size: 7px; letter-spacing: .08em; margin-top: 2px; }
+
+/* 牌背（座位卡上的剩余张数小堆） */
+.ddz-back {
+  display: block; width: 13px; height: 19px; border-radius: 3px;
+  background: var(--accent-grad);
+  border: 1px solid var(--glow-border);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .4);
+  margin-left: -7px;
+}
+.ddz-back:first-child { margin-left: 0; }
+.cd-seat .cnt .backs { display: flex; align-items: center; flex: none; }
+
+/* ═════════ 地主件（座位徽标 / 角色 tag）═════════ */
+
+.cd-seat.is-landlord { border-color: var(--accent-line); }
+.cd-seat.is-landlord.is-turn { box-shadow: var(--glow-shadow); }
+
+.ddz-role {
+  display: inline-flex; align-items: center; gap: 3px; flex: none;
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px;
+  border: 1px solid var(--border-soft); color: var(--text-mute); background: var(--surface-2);
+}
+.ddz-role.is-landlord {
+  color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash);
+}
+.ddz-role.is-farmer { color: var(--text-dim); }
+.ddz-crown { display: inline-flex; align-items: center; color: var(--accent); }
+
+/* 场面上的地主徽标（cd-badge 里塞一顶皇冠） */
+.ddz-badge--landlord .ddz-crown { color: inherit; }
+
+/* ═════════ 底牌明示区（定完地主，全员可见）═════════ */
+
+.ddz-bottom {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 2px 0 0;
+}
+.ddz-bottom .k {
+  flex: none; font-size: 10px; font-weight: 700; letter-spacing: .18em;
+  color: var(--text-faint);
+}
+.ddz-bottom .cards { display: flex; align-items: center; gap: 4px; }
+.ddz-bottom .ddz-card { box-shadow: inset 0 1px 0 var(--border-soft), 0 2px 7px rgb(0 0 0 / .3); }
+.ddz-card.is-flip { animation: ddzFlip .42s cubic-bezier(.2, .9, .3, 1.1) backwards; animation-delay: calc(var(--i) * 90ms); }
+@keyframes ddzFlip {
+  from { opacity: 0; transform: rotateY(90deg) translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ═════════ 叫分阶段 ═════════ */
+
+.ddz-bids { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.ddz-bid {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px; border-radius: 11px;
+  border: 1px solid var(--border-faint); background: var(--surface-2);
+  font-size: 11px; line-height: 1.3;
+}
+.ddz-bid b { font-weight: 700; color: var(--text); max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ddz-bid i { font-style: normal; color: var(--text-faint); }
+.ddz-bid.is-called i { color: var(--accent); font-weight: 700; }
+.ddz-bid.is-now { border-color: var(--accent-line); background: var(--accent-wash); }
+.ddz-bid.is-waiting b { color: var(--text-mute); }
+
+/* 动作条上的四个叫分键：375px 一行四个，345px 也塞得下 */
+.ddz-bidbtn { flex: 1; min-width: 0; padding: 0 6px; font-size: 14px; }
+
+/* ═════════ 场上出的牌 ═════════ */
+
+/* 场面区比大富豪多两行（底牌 + 叫分），牌堆的保底高度就得省着点用，
+ * 不然中屏（375×720）上舞台吃不下聊天区，流水会溢出去压到底部通知条 */
+.ddz-pile {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; flex-wrap: wrap; min-height: 64px;
+}
+.ddz-pile-empty { font-size: 12px; color: var(--text-faint); text-align: center; }
+.ddz-by { font-size: 11.5px; color: var(--text-dim); min-height: 15px; text-align: center; }
+
+/* 出牌飞入场中 */
+.ddz-pile .ddz-card.is-fly { animation: ddzFly .34s cubic-bezier(.2, .9, .3, 1.15) backwards; animation-delay: calc(var(--i) * 45ms); }
+@keyframes ddzFly {
+  from { opacity: 0; transform: translateY(120px) scale(.72) rotate(-8deg); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+/* 一手能有 20 张（飞机带对 4 连），大手牌整体缩一号 + 压边，免得撑破场面 */
+.ddz-pile.is-many .ddz-card { width: 38px; height: 54px; padding: 3px 4px; border-radius: 7px; }
+.ddz-pile.is-many .ddz-card .r { font-size: 13px; }
+.ddz-pile.is-many .ddz-card .s { font-size: 10px; }
+.ddz-pile.is-many .ddz-card .c { display: none; }
+.ddz-pile.is-many .ddz-card.is-tone-joker .r { font-size: 15px; margin-top: 7px; }
+.ddz-pile.is-many .ddz-card.is-tone-joker .s { font-size: 7px; letter-spacing: .06em; margin-top: 2px; }
+.ddz-pile.is-many .ddz-card + .ddz-card { margin-left: -8px; }
+
+/* ═════════ 手牌区 ═════════ */
+
+.ddz-handzone { padding-top: 4px; }
+.ddz-hand-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 14px 0; }
+.ddz-hand-head #r-mine { font-size: 11.5px; color: var(--text-mute); display: flex; align-items: center; gap: 6px; }
+.ddz-hand-head #r-mine b { color: var(--text-strong); font-size: 13px; }
+.ddz-hand-head .hint { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ddz-hand-head .hint.is-bad { color: var(--danger); }
+
+/* 扇面：横向可滚，牌互相压边，选中的往上浮并盖到最上层 */
+.ddz-fan {
+  display: flex; align-items: flex-end;
+  /* safe center：牌少时居中，牌多到溢出时退回左对齐（不然左边那几张滚不到）*/
+  justify-content: safe center;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  padding: 24px 14px 8px;
+}
+.ddz-fan::-webkit-scrollbar { display: none; }
+/* 发牌入场只用 backwards：跑完就把 transform 还给元素自身，
+ * 不然 fill:forwards 会把 .is-on 的上浮压住 */
+/* 压边一律写在相邻兄弟上：第一张永远不许有负边距，
+ * 不然它会被挤到滚动容器左边界外面，怎么滑都点不到（用 :first-child 反选会跟 .is-dense 撞特异性） */
+.ddz-fan .ddz-card { animation: ddzDeal .3s ease backwards; animation-delay: calc(var(--i) * 20ms); }
+.ddz-fan .ddz-card + .ddz-card { margin-left: -14px; }
+/* 选中的牌靠上浮 + 描边区分，不能再抬 z-index：一抬就会盖住右边那张
+ * 只露出 24px 的未选中牌，导致点不到（实测 dense 手牌必现）。 */
+.ddz-fan .ddz-card.is-on { z-index: auto; }
+.ddz-fan .ddz-card:active { transform: translateY(-8px); }
+.ddz-fan .ddz-card.is-on:active { transform: translateY(-22px); }
+@keyframes ddzDeal { from { opacity: 0; transform: translateY(26px) rotate(6deg); } }
+
+/* 地主 20 张 / 农民 17 张：叠紧一点，露出左上角的点数就够认牌 */
+.ddz-fan.is-dense .ddz-card + .ddz-card { margin-left: -30px; }
+.ddz-fan.is-dense .ddz-card .c { display: none; }
+
+/* ═════════ 炸弹：全场震一下 ═════════ */
+
+body.is-boom .cd-top,
+body.is-boom .cd-stage,
+body.is-boom .cd-bottom { animation: ddzShake .5s cubic-bezier(.36, .07, .19, .97) both; }
+@keyframes ddzShake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-7px); }
+  40%, 60% { transform: translateX(7px); }
+  100% { transform: none; }
+}
+
+/* ═════════ 本局名次卡（round_over）═════════ */
+
+.cd-modal.ddz-reveal { max-width: 340px; text-align: center; }
+.ddz-reveal .cd-eyebrow { display: block; }
+.ddz-reveal h2 { margin-top: 4px; font-size: 22px; }
+.ddz-reveal-extra {
+  margin-top: 6px; font-size: 13px; font-weight: 800; letter-spacing: .1em;
+  color: var(--accent); text-shadow: 0 0 18px var(--accent-wash);
+}
+.ddz-reveal-list { display: flex; flex-direction: column; gap: 8px; margin: 16px 0 4px; }
+.ddz-reveal-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-radius: 13px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+  animation: ddzRevealIn .42s cubic-bezier(.2, .9, .3, 1.2) backwards;
+  animation-delay: calc(var(--i) * 130ms);
+}
+.ddz-reveal-row.is-me { border-color: var(--accent-line); background: var(--accent-wash); }
+.ddz-reveal-row .nm {
+  flex: 1; min-width: 0; text-align: left;
+  display: flex; align-items: center; gap: 5px; overflow: hidden;
+  font-size: 13.5px; font-weight: 700; color: var(--text-strong);
+}
+.ddz-reveal-row .nm .bot { display: flex; color: var(--ink); }
+.ddz-reveal-row .rl { flex: none; font-size: 10.5px; color: var(--text-faint); }
+.ddz-reveal-row .rl.is-landlord { color: var(--accent); font-weight: 700; }
+.ddz-reveal-row .dl { flex: none; width: 48px; text-align: right; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ddz-reveal-row .dl.is-up { color: var(--ink); }
+.ddz-reveal-row .dl.is-down { color: var(--danger); }
+.ddz-reveal-row .sc { flex: none; width: 54px; text-align: right; font-size: 11px; color: var(--text-mute); font-variant-numeric: tabular-nums; }
+@keyframes ddzRevealIn { from { opacity: 0; transform: translateX(-24px) scale(.94); } }
+.ddz-reveal-acts { flex-wrap: wrap; }
+.ddz-reveal-acts .cd-btn { flex: 1; min-width: 92px; }
+
+/* ═════════ 无障碍 / 窄屏 / 矮屏 ═════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .ddz-fan .ddz-card,
+  .ddz-pile .ddz-card.is-fly,
+  .ddz-card.is-flip,
+  .ddz-reveal-row { animation: none; }
+  body.is-boom .cd-top,
+  body.is-boom .cd-stage,
+  body.is-boom .cd-bottom { animation: none; }
+}
+
+/* 窄屏（345px 那一档）：牌收一号、叠更紧，选中的照样浮出来点得到 */
+@media (max-width: 400px) {
+  .ddz-card { width: 50px; height: 71px; }
+  .ddz-card .r { font-size: 18px; }
+  .ddz-card .c { font-size: 21px; }
+  .ddz-fan { padding: 22px 10px 8px; }
+  /* 露出来的那条 = 牌宽 - 压边，够放下「10」这种两位点数才算能认牌 */
+  .ddz-fan .ddz-card + .ddz-card { margin-left: -20px; }
+  .ddz-fan.is-dense .ddz-card + .ddz-card { margin-left: -28px; }
+  .ddz-bidbtn { font-size: 13px; padding: 0 4px; }
+  .ddz-bottom .k { letter-spacing: .1em; }
+}
+
+/* 中屏（375×720 这一档）：舞台要同时装下「场面 + 底牌 + 流水 + 输入条」，
+ * 场面区先收（牌堆保底、底牌小一号、「谁出的」那行让位），
+ * 还差的一点从流水的保底高度里出——只在这张牌桌页降，别的页不受影响。 */
+@media (max-height: 800px) {
+  .ddz-pile { min-height: 48px; }
+  .ddz-card--sm { width: 28px; height: 40px; }
+  .ddz-by { display: none; }
+  .ddz-fan { padding: 20px 12px 6px; }
+  .cd-field { gap: 6px; }
+  .cd-log { min-height: 48px; }
+}
+
+/* 矮屏（iPhone SE 竖向紧）：把牌和场面压一压，保证手牌和按钮不被挤掉 */
+@media (max-height: 700px) {
+  .ddz-card { width: 46px; height: 65px; }
+  .ddz-card .r { font-size: 17px; }
+  .ddz-card .c { display: none; }
+  .ddz-card--sm { width: 28px; height: 40px; }
+  .ddz-pile { min-height: 46px; }
+  .ddz-by { display: none; }          /* 「谁出的」这行让位，牌本身还在 */
+  .ddz-fan { padding: 18px 10px 6px; }
+  .ddz-handzone { padding-top: 0; }
+  /* 这一页的场面区比大富豪多两行，流水的保底高度跟着让 12px，
+   * 不让它把底部通知条压住（只在这张牌桌页生效） */
+  .cd-log { min-height: 44px; }
+}

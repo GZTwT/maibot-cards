@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <!-- iOS 18.0.x standalone bug 绕开：必须 black，绝不用 black-translucent -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>斗地主 · 牌桌</title>
+  <!-- 主题地基：boot.js 必须在任何样式之前同步跑，首屏防闪 -->
+  <script src="/assets-theme/boot.js"></script>
+  <script src="/assets-theme/icons.js"></script>
+  <link rel="stylesheet" href="/assets-theme/base.css">
+  <!-- 通用骨架在 cards.css（cd-*），这一页只加斗地主专属的牌面/扇面/地主件 -->
+  <link rel="stylesheet" href="cards.css?v=20261029fix5">
+  <link rel="stylesheet" href="ddz.css?v=20261029cards">
+</head>
+<body class="cd-room">
+  <div class="cn-aurora"></div>
+
+  <header class="cd-top">
+    <div class="cd-top-row">
+      <a class="cd-back" id="r-back" href="/cards/" aria-label="回大厅"></a>
+      <div class="cd-title">
+        <div class="nm" id="r-name">房间</div>
+        <div class="cd" id="r-code"></div>
+      </div>
+      <button class="cd-iconbtn" id="r-help" type="button" aria-label="玩法说明"></button>
+      <button class="cd-iconbtn" id="r-score" type="button" aria-label="计分板"></button>
+      <button class="cd-iconbtn" id="r-close" type="button" aria-label="关闭房间" hidden></button>
+      <div class="cd-link" id="r-conn" data-conn="retry"><span class="dot"></span><span class="tx">连接中</span></div>
+    </div>
+    <div class="cd-seats" id="r-seats"></div>
+  </header>
+
+  <main class="cd-stage" id="r-stage">
+    <section class="cd-field" id="r-field">
+      <div class="cd-turn" id="r-turn"></div>
+      <div class="cd-badges" id="r-badges"></div>
+      <!-- 底牌三张：定地主后对全员明示（观战也看得见） -->
+      <div class="ddz-bottom" id="r-bottom" hidden>
+        <span class="k">底牌</span>
+        <span class="cards" id="r-bottom-cards"></span>
+      </div>
+      <!-- 叫分阶段：各家喊了什么就挂在这儿 -->
+      <div class="ddz-bids" id="r-bids" hidden></div>
+      <div class="ddz-pile" id="r-pile"></div>
+      <div class="ddz-by" id="r-by"></div>
+    </section>
+
+    <!-- 流水 + 聊天混排的一条流，下面挂输入条。
+         输入条**不能**用 position:fixed —— iOS 键盘弹起时 fixed 会漂，老老实实待在文档流里。 -->
+    <div class="cd-chatdock" id="r-chatdock">
+      <div class="cd-log" id="r-log"></div>
+      <form class="cd-chatbar" id="r-chatbar" autocomplete="off">
+        <input class="cd-chatin" id="r-chatin" type="text" maxlength="280" placeholder="说点什么…"
+               enterkeyhint="send" aria-label="牌桌聊天">
+        <button class="cd-chatsend" id="r-chatsend" type="submit" aria-label="发送"></button>
+      </form>
+    </div>
+
+    <div class="cd-wait" id="r-wait" hidden></div>
+  </main>
+
+  <footer class="cd-bottom">
+    <div class="cd-notice" id="r-notice" hidden></div>
+    <div class="ddz-handzone" id="r-handzone" hidden>
+      <div class="ddz-hand-head">
+        <span id="r-mine"></span>
+        <span class="hint" id="r-hint"></span>
+      </div>
+      <div class="ddz-fan" id="r-fan"></div>
+    </div>
+    <div class="cd-acts" id="r-acts"></div>
+  </footer>
+
+  <!-- 引擎（牌型/压制预判用）。**没就绪也不影响玩**：ddz-room.js 里全是防御性调用，
+       拿不到就整体降级——不预判、按钮全放开、错了由服务端 400 中文提示兜底。 -->
+  <script src="/cards/engine/ddz.js?v=20260819cards" onerror="console.warn('[ddz] 引擎没加载上，前端预判降级')"></script>
+
+  <script src="js/api.js?v=20261029ai2"></script>
+  <script src="js/ui.js?v=20260819cards"></script>
+  <script src="js/ddz-room.js?v=20260819cards"></script>
+</body>
+</html>

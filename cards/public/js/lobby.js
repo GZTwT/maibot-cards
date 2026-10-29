@@ -357,6 +357,74 @@
     });
   }
 
+  // 群聊开桌：服务端固定放一只 MaiBot，这里只负责生成可转发的入桌链接。
+  function copyLink(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok ? Promise.resolve() : Promise.reject(new Error('复制失败'));
+  }
+
+  function partyShare(r) {
+    var text = (r.gameName || gameLabel(r.game)) + '牌局 ' + r.code + '，点开就能一起打';
+    if (navigator.share) {
+      return navigator.share({ title: r.name, text: text, url: r.inviteUrl }).then(function () {
+        UI.toast('已分享');
+      }, function (e) {
+        if (e && e.name === 'AbortError') return;
+        return copyLink(r.inviteUrl).then(function () { UI.toast('链接已复制'); });
+      });
+    }
+    return copyLink(r.inviteUrl).then(function () { UI.toast('链接已复制'); });
+  }
+
+  function party() {
+    var btn = $('lb-party');
+    var myName = ($('lb-name').value || '').trim();
+    if (!myName) { UI.toast('先起个昵称', true); $('lb-name').focus(); return; }
+    btn.disabled = true;
+    API.createParty(game, ($('lb-room').value || '').trim() || (myName + '的牌局'), myName, rules()).then(function (r) {
+      btn.disabled = false;
+      API.saveSeat(r.code, Object.assign({ name: r.host.name, isHost: true }, r.host));
+      API.saveMe({ name: r.host.name });
+      var open = 'party.html?c=' + encodeURIComponent(r.code) +
+        '&invite=' + encodeURIComponent(r.inviteUrl.split('invite=')[1] || '');
+      UI.modal({
+        html: '<h2>群聊牌桌已开好</h2>' +
+          '<p class="sub">' + esc(r.name) + ' · ' + esc(r.gameName) + '<br>' +
+          'MaiBot 已经入座。把链接发到群里，群友点开就能入座。</p>' +
+          '<textarea class="party-share-area" readonly rows="3">' + esc(r.inviteUrl) + '</textarea>' +
+          '<div class="cd-modal-acts">' +
+          '<button class="cd-btn" id="lp-share">分享</button>' +
+          '<button class="cd-btn cd-btn--primary" id="lp-open">进入牌桌</button></div>',
+        onMount: function (h) {
+          var ta = h.el.querySelector('.party-share-area');
+          ta.addEventListener('focus', function () { ta.select(); });
+          h.el.querySelector('#lp-share').addEventListener('click', function () {
+            partyShare(r).catch(function (e) { UI.toast(e.message, true); });
+          });
+          h.el.querySelector('#lp-open').addEventListener('click', function () {
+            location.href = open;
+          });
+          copyLink(r.inviteUrl).catch(function () {});
+        }
+      });
+    }, function (e) {
+      btn.disabled = false;
+      UI.toast(e.message, true);
+    });
+  }
+
   // ── 启动 ──────────────────────────────────────────────────────────────────
 
   function boot() {
@@ -386,6 +454,9 @@
 
     $('lb-help').addEventListener('click', function () { UI.rulesHelp(game); });
     $('lb-create').addEventListener('click', create);
+    $('lb-ic-party').innerHTML = UI.ICON.robot(18);
+    $('lb-party-chev').innerHTML = UI.icon('chevron', 16);
+    $('lb-party').addEventListener('click', party);
     $('lb-refresh').addEventListener('click', function () { loadRooms(); });
 
     loadRooms();

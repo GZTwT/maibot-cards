@@ -17,6 +17,8 @@ const http = require("http");
 const express = require("express");
 const { execFile } = require("child_process");
 const { createHmac, timingSafeEqual, randomBytes, randomInt } = require("crypto");
+const ddzStrategy = require("./engines/ddz-strategy.cjs");
+const zjhStrategy = require("./engines/zjh-strategy.cjs");
 
 const DEFAULT_PORT = 8081;
 const DEFAULT_HOST = "127.0.0.1";
@@ -48,9 +50,16 @@ const AUTO_MODELS = {
 const EXTERNAL_AGENT_ID = "external";
 const AUTO_DELAY_MS = 1200;        // 出牌前顿一下，别快得像机器
 const AUTO_CLI_TIMEOUT_MS = 45000; // 单发思考超时
+const BOT_MOVE_TIMEOUT_MS = 10000; // 群聊机器人单步超时（模型 8s + 余量）
+const PARTY_INVITE_MS = 7 * 24 * 3600 * 1000; // 群聊邀请有效期
+const AI_MOVER_TIMEOUT_MS = AUTO_CLI_TIMEOUT_MS + 5000; // CLI 超时后再兜底一层
+const DEFAULT_PARTY_BOT_ID = "maibot";
+const DEFAULT_PARTY_BOT_NAME = "MaiBot";
 const AUTO_MOVE_CAP = 24;          // AI prompt 里最多列这么多招
 const WAKE_MOVE_CAP = 15;          // 外接 agent 唤醒简报里最多列这么多招
 const AUTO_SAY_MAX = 120;          // AI 嘴一句最多落这么多字进聊天
+const BANTER_COOLDOWN_MS = 2500;   // 同一桌两次闲聊最短间隔（给追问留余地）
+const BANTER_TIMEOUT_MS = 20000;   // 等 MaiBot 回话的上限（模型 12s + 余量）
 
 // ── 引擎注册表 ──────────────────────────────────────────────────────────────
 // 三个引擎并行开发中，谁没就位就是 null——服务照起，只在"建这个 game 的房"时 503。
@@ -80,7 +89,7 @@ const ENGINES = {
 // 各游戏的一句话策略提示（塞进 AI prompt，炸金花是下注游戏，思路和出牌游戏完全不同）
 const STRATEGY_HINT = {
   ddz: "记牌压制配合队友或单干",
-  zjh: "牌差就早弃,牌好就加注,闷牌省钱",
+  zjh: "牌差就早弃,牌好就加注,闷牌省钱;第一圈后中强牌可花当前注比牌,优先挑筹码少/闷牌的对手,弱牌别送",
   uno: "留万能牌收尾,盯着剩1张的人"
 };
 
@@ -255,6 +264,23 @@ function buildAutoPrompt(job) {
 
   lines.push("");
   lines.push("打牌思路：" + (STRATEGY_HINT[job.game] || "别送,该稳的时候稳,该压的时候压") + "。");
+  if (job.game === "zjh") {
+    lines.push("比牌规则：第一圈每个人说过一次话后才开放；付当前注和指定对手单挑，牌小者出局。");
+    lines.push("保守打法：强牌/中牌想收池时才比牌，优先挑筹码少或闷牌的对手；弱牌不要送，强牌也不必每手都比。");
+    if (job.hand) {
+      lines.push("当前牌力：" + (job.hand.label || "") +
+        (job.tactics ? "（档 " + (job.tactics.tier || "") + "）" : ""));
+    }
+    if (job.tactics) {
+      lines.push("底池赔率约 " + Number(job.tactics.odds || 0).toFixed(2) +
+        "，位置 " + Number(job.tactics.position || 0).toFixed(2) + "。");
+      const opps = (job.tactics.opponents || []).map(function (o) {
+        return (o.name || o.id) + (o.looked ? "明" : "闷") +
+          (o.foldRate == null ? "" : " 弃" + Math.round(o.foldRate * 100) + "%");
+      });
+      if (opps.length) lines.push("对手：" + opps.join(" / "));
+    }
+  }
   lines.push("只回一个 JSON 对象，前后不要任何别的字，形如 {\"move\":\"p2\",\"say\":\"可选的一句话\"}" +
     "（p2 换成你真正要出的那一招的编号）。");
   lines.push("move 只能是上面列出的编号（p1、p2……）或 \"pass\"（列表里有过这一招才能用）。");
@@ -321,6 +347,78 @@ function cliMover(job) {
     // execFile 默认 pipe stdin 且不关，claude 会等 3s 并打警告 —— 直接关掉
     try { child.stdin.end(); } catch (e) { /* 没 stdin 就算了 */ }
   });
+}
+
+// ── 群聊机器人出牌 ─────────────────────────────────────────────────────────
+// MaiBot 的座位固定由服务端创建，出牌只问它一个 HTTP 端点；它不回 / 超时 / 乱答
+// 都由 runAutoTurn 落到该座位的第一个合法动作，绝不会卡住整桌。
+
+function withTimeout(promise, ms, label) {
+  let timer = null;
+  const guard = new Promise(function (_, reject) {
+    timer = setTimeout(function () {
+      reject(new Error(String(label || "mover") + " 超过 " + Math.round(ms / 1000) + " 秒未响应"));
+    }, ms);
+    if (typeof timer.unref === "function") timer.unref();
+  });
+  return Promise.race([promise, guard]).finally(function () { clearTimeout(timer); });
+}
+
+function botEndpoint() {
+  return String(process.env.MAIBOT_AGENT_URL || process.env.BISCA_MAIBOT_URL || "").trim();
+}
+
+function botPayload(job) {
+  return {
+    code: job.code,
+    roomName: job.roomName,
+    stream_id: job.streamId || "",
+    game: job.game,
+    gameName: job.gameName,
+    phase: job.phase || null,
+    seatId: job.seatId || null,
+    seatName: job.seatName,
+    briefing: job.briefing || "",
+    moveLines: job.moveLines || [],
+    view: job.view || null,
+    legal: job.legal || [],
+    hand: job.hand || null,
+    tactics: job.tactics || null
+  };
+}
+
+async function httpBotMover(job, opts) {
+  const o = opts || {};
+  const url = String(o.url || botEndpoint() || "").trim();
+  if (!url) return { move: null, error: "未配置 MAIBOT_AGENT_URL" };
+  const headers = { "Content-Type": "application/json" };
+  const key = String(o.key || process.env.MAIBOT_AGENT_KEY || "").trim();
+  if (key) headers["x-internal-key"] = key;
+  const controller = new AbortController();
+  const timer = setTimeout(function () { controller.abort(); }, BOT_MOVE_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(botPayload(job)),
+      signal: controller.signal
+    });
+    const raw = await res.text();
+    if (!res.ok) return { move: null, error: "MaiBot HTTP " + res.status + " " + raw.slice(-160) };
+    let body = null;
+    try {
+      body = JSON.parse(raw);
+    } catch (e) {
+      return { move: null, error: "MaiBot 返回的不是 JSON" };
+    }
+    if (!body || typeof body !== "object") return { move: null, error: "MaiBot 返回空" };
+    const move = body.action !== undefined ? body.action : body.move;
+    return { move: move, say: typeof body.say === "string" ? body.say : "" };
+  } catch (e) {
+    return { move: null, error: e && e.name === "AbortError" ? "MaiBot 思考超时" : ("MaiBot 请求失败：" + (e && e.message)) };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ── 叫外接 agent 上桌（通用 webhook）────────────────────────────────────────
@@ -517,6 +615,15 @@ function createServer(options) {
       next.internal_key = randomBytes(24).toString("hex");
       dirty = true;
     }
+    if (typeof next.party_bot_id !== "string" || !/^[a-z0-9_-]{1,32}$/.test(next.party_bot_id)) {
+      next.party_bot_id = DEFAULT_PARTY_BOT_ID;
+      dirty = true;
+    }
+    if (typeof next.party_bot_name !== "string" || !next.party_bot_name.trim()) {
+      next.party_bot_name = DEFAULT_PARTY_BOT_NAME;
+      dirty = true;
+    }
+    if (typeof next.allow_party_guests !== "boolean") { next.allow_party_guests = true; dirty = true; }
     if (!next.defaults || typeof next.defaults !== "object") { next.defaults = {}; dirty = true; }
     for (const g of GAME_KEYS) {
       const base = metaOf(engines[g], g).defaultRules;
@@ -539,6 +646,22 @@ function createServer(options) {
 
   function guestsAllowed() {
     return loadConfig().allow_guests === true;
+  }
+
+  // 群聊开桌时允许“只带邀请”的客人进房；这是给 party.html 走的窄口子，
+  // 不会放开大厅、建房或其他房间的访客访问。
+  function partyGuestsAllowed() {
+    return loadConfig().allow_party_guests !== false;
+  }
+
+  function partyBotId() {
+    const id = loadConfig().party_bot_id;
+    return typeof id === "string" && /^[a-z0-9_-]{1,32}$/.test(id) ? id : DEFAULT_PARTY_BOT_ID;
+  }
+
+  function partyBotName() {
+    const name = loadConfig().party_bot_name;
+    return typeof name === "string" && name.trim() ? name.trim().slice(0, 16) : DEFAULT_PARTY_BOT_NAME;
   }
 
   function internalKey() {
@@ -574,6 +697,14 @@ function createServer(options) {
 
   function roomPath(code) {
     return path.join(roomsDir, code + ".json");
+  }
+
+  function newRoomCode() {
+    for (let i = 0; i < 30; i++) {
+      const c = randomCode();
+      if (!fs.existsSync(roomPath(c))) return c;
+    }
+    return null;
   }
 
   function loadRoom(code) {
@@ -709,7 +840,12 @@ function createServer(options) {
 
   function seatByToken(room, token) {
     if (!token || typeof token !== "string") return null;
-    return (room.seats || []).find(function (s) { return s.playerToken === token; }) || null;
+    // 机器人座位的 token 只在服务端内部流转，不能被当成人类玩家凭证代打。
+    const seat = (room.seats || []).find(function (s) {
+      return !s.isAI && s.playerToken === token;
+    }) || null;
+    if (seat) seat.seenAt = Date.now(); // 有人用这个座位，别当成离线清掉
+    return seat;
   }
 
   function seatByAgent(room, agentId) {
@@ -746,6 +882,99 @@ function createServer(options) {
     return { text: text };
   }
 
+  // ── MaiBot 牌桌闲聊 / 共享记忆 ──
+  // 牌桌聊天和局末事件交给 MaiBot 插件：它写进对应 QQ 群的 Maisaka 上下文
+  // （QQ 群里的 MaiBot 下次能接上这段记忆），再回一句落到牌桌聊天里。
+  const banterSeen = new Map(); // code -> {round:N, over, chatAt}
+
+  function maibotChatUrl() {
+    const fromOpt = String(opts.maibotChatUrl || "").trim();
+    const fromEnv = String(process.env.MAIBOT_CHAT_URL || "").trim();
+    const fromCfg = String(loadConfig().maibot_chat_url || "").trim();
+    return (fromOpt || fromEnv || fromCfg || "http://maim-bot-core:8098").replace(/\/+$/, "");
+  }
+
+  function partyBotSeat(room) {
+    const pid = room.partyBotId && room.agentSeats && room.agentSeats[room.partyBotId];
+    if (!pid) return null;
+    return (room.seats || []).find(function (s) { return s.playerId === pid; }) || null;
+  }
+
+  function askMaibot(room, event, text, meta) {
+    if (!room || !room.party || room.closed || !room.streamId) return;
+    const bot = partyBotSeat(room);
+    if (!bot) return;
+    const seen = banterSeen.get(room.code) || {};
+    const marker = event === "round_over"
+      ? ("round:" + ((room.state && room.state.round) || 0))
+      : event;
+    if (event === "chat") {
+      if (seen.chatAt && Date.now() - seen.chatAt < BANTER_COOLDOWN_MS) return;
+      seen.chatAt = Date.now();
+    } else {
+      if (seen[marker]) return;     // 一局只吐槽一次，整场只总结一次
+      seen[marker] = Date.now();
+    }
+    banterSeen.set(room.code, seen);
+
+    const st = room.state || {};
+    const key = internalKey();
+    if (!key) return;
+    const body = {
+      stream_id: room.streamId,
+      event: event,
+      room: { code: room.code, name: room.name, game: room.game, gameName: metaFor(room).name },
+      text: String(text || "").slice(0, CHAT_MAX_LEN),
+      reply_to: (meta && meta.replyTo) || null,
+      round: st.round || 0,
+      phase: st.phase || "",
+      log: (st.log || []).slice(-6).map(function (l) { return String((l && l.text) || ""); }),
+      chat: (room.chat || []).slice(-6).map(function (c) { return { name: c.name, text: c.text }; }),
+      result: {
+        winner: st.winner || st.roundWinner || null,
+        lastResults: st.lastResults || null,
+        rounds: Array.isArray(st.rounds) ? st.rounds.length : 0,
+        players: (st.players || []).map(function (p) {
+          return {
+            id: p.id, name: p.name, isLandlord: !!p.isLandlord,
+            score: p.score, chips: p.chips, handCount: p.handCount
+          };
+        })
+      }
+    };
+    fetch(maibotChatUrl() + "/bisca/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-key": key },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(BANTER_TIMEOUT_MS)
+    }).then(function (r) {
+      return r.ok ? r.json() : null;
+    }).then(function (data) {
+      const say = String((data && data.text) || "").trim().slice(0, AUTO_SAY_MAX);
+      if (!say) return;
+      const fresh = loadRoom(room.code); // 等模型时可能已经散桌
+      if (!fresh || fresh.closed) return;
+      const seat = partyBotSeat(fresh);
+      if (!seat) return;
+      // 牌桌聊天：等模型这几秒里如果又有人说话，旧回复会答错人，直接丢掉。
+      if (event === "chat" && meta && meta.replyTo) {
+        const last = (fresh.chat || []).slice(-1)[0];
+        if (!last || last.by !== meta.replyTo.id || last.text !== text) return;
+      }
+      pushChat(fresh, seat.playerId, seat.name, say);
+      saveRoom(fresh);
+      broadcast(fresh);
+    }).catch(function (e) {
+      console.warn("[cards] " + room.code + " MaiBot 闲聊失败：" + (e && e.message));
+    });
+  }
+
+  // 牌局状态落地后：整场结束才让 MaiBot 在群里吐槽，局末不刷屏。
+  function afterStateChange(room) {
+    if (!room || !room.state) return;
+    if (room.state.phase === "game_over") askMaibot(room, "game_over", "");
+  }
+
   // ── SSE 广播（分视角）──
 
   function statePayload(room, playerId) {
@@ -757,6 +986,9 @@ function createServer(options) {
       gameName: meta.name,
       maxPlayers: meta.maxPlayers,
       minPlayers: meta.minPlayers,
+      // Public pre-join view: seating and readiness only. The full view stays in `state`.
+      party: !!room.party,
+      expiresAt: room.expiresAt || null,
       started: !!room.started,
       closed: !!room.closed,
       rules: room.rules || {},
@@ -797,6 +1029,18 @@ function createServer(options) {
   // 触发点只有一个：broadcast（任何状态变动都会走）+ 懒加载房间的首次落缓存 + 启动扫描。
 
   const aiMover = typeof opts.aiMover === "function" ? opts.aiMover : cliMover;
+  const botMover = typeof opts.botMover === "function" ? opts.botMover : function (job) {
+    // 群聊桌优先问 MaiBot 插件（读同一份策略配置）；旧房没有 streamId 就落到内置策略。
+    const url = botEndpoint()
+      || (job && job.streamId ? "http://maim-bot-core:8098/bisca/move" : "");
+    return httpBotMover(job, { url: url, key: internalKey() });
+  };
+  // 测试里不用等虚拟座位「顿一下」，也可只让 MaiBot 自动；生产默认全部为 1200ms。
+  const autoDelayMs = typeof opts.autoDelayMs === "number" ? Math.max(0, opts.autoDelayMs) : AUTO_DELAY_MS;
+  const partyBotDelayMs = typeof opts.partyBotDelayMs === "number"
+    ? Math.max(0, opts.partyBotDelayMs) : autoDelayMs;
+  const partyBotTimeoutMs = typeof opts.botTimeoutMs === "number" ? opts.botTimeoutMs : BOT_MOVE_TIMEOUT_MS;
+  const autoMoverTimeoutMs = typeof opts.aiTimeoutMs === "number" ? opts.aiTimeoutMs : AI_MOVER_TIMEOUT_MS;
   const autoBusy = new Set();   // 每房一把锁，防并发重入
   const autoTimers = new Set(); // stop() 时清掉还没触发的定时器
 
@@ -804,17 +1048,21 @@ function createServer(options) {
   function buildJob(room, seat, extra) {
     const engine = engineOf(room);
     const legal = legalOf(room, seat.playerId);
+    const view = viewOf(room, seat.playerId);
     return Object.assign({
       code: room.code,
       roomName: room.name || room.code,
+      streamId: room.streamId || "",
       game: room.game,
       gameName: metaFor(room).name,
       seatName: seat.name,
       phase: room.state && room.state.phase,
       briefing: room.state ? safeBriefing(engine, room.state, seat.playerId) : "",
       moveLines: legal.map(function (m) { return safeFmtMove(engine, m); }),
-      view: viewOf(room, seat.playerId),
-      legal: legal
+      view: view,
+      legal: legal,
+      hand: room.game === "zjh" ? zjhStrategy.handInfo(view) : null,
+      tactics: room.game === "zjh" ? zjhStrategy.contextOf(view, room.stats || {}) : null
     }, extra || {});
   }
 
@@ -935,7 +1183,10 @@ function createServer(options) {
 
   // 欠动作的人里，有没有需要自动驱动（CLI）的 AI 座位？没有返回 null。
   function pendingAutoSeat(room) {
-    return pendingSeatWhere(room, function (s) { return !!AUTO_MODELS[s.agentId]; });
+    const botId = room.partyBotId;
+    return pendingSeatWhere(room, function (s) {
+      return s.auto === true || !!AUTO_MODELS[s.agentId] || (!!botId && s.agentId === botId);
+    });
   }
 
   // 欠动作的是不是外接 agent 座位？轮到它要按 webhook 捎个信。
@@ -944,10 +1195,11 @@ function createServer(options) {
   }
 
   function scheduleAuto(room) {
-    if (!room || room.closed || autoBusy.has(room.code)) return;
+    if (!room || room.closed || !engines[room.game] || autoBusy.has(room.code)) return;
     const seat = pendingAutoSeat(room);
     if (!seat) return;
     const code = room.code;
+    const delay = room.partyBotId && seat.agentId === room.partyBotId ? partyBotDelayMs : autoDelayMs;
     autoBusy.add(code);
     const timer = setTimeout(function () {
       autoTimers.delete(timer);
@@ -960,13 +1212,29 @@ function createServer(options) {
         const fresh = loadRoom(code);
         if (fresh) scheduleAuto(fresh); // 下一个欠动作的可能还是自动座位
       });
-    }, AUTO_DELAY_MS);
+    }, delay);
     if (typeof timer.unref === "function") timer.unref();
     autoTimers.add(timer);
   }
 
   // 'pN' → 第 N 招（1 起）；'pass' → 过。对不上返回 null，交给兜底。
   function resolveAutoMove(move, legal) {
+    if (move && typeof move === "object" && !Array.isArray(move)) {
+      for (const m of legal) {
+        if (sameValue(m, move)) return m;
+      }
+      // UNO 万能牌：机器人的 action 常只给 cards，没重复 color；在候选上补色后再校验。
+      if (Array.isArray(move.cards) && move.cards.length) {
+        for (const m of legal) {
+          if (!m || m.type !== move.type) continue;
+          if (JSON.stringify(m.cards || []) !== JSON.stringify(move.cards)) continue;
+          if (typeof m.color === "string" && typeof move.color !== "string") {
+            return Object.assign({}, move, { color: m.color });
+          }
+        }
+      }
+      return null;
+    }
     if (typeof move !== "string") return null;
     const s = move.trim().toLowerCase();
     if (s === "pass") {
@@ -976,6 +1244,35 @@ function createServer(options) {
     if (!m) return null;
     const idx = parseInt(m[1], 10) - 1;
     return idx >= 0 && idx < legal.length ? legal[idx] : null;
+  }
+
+  // 外部 mover 没有/超时/乱答时的兜底：斗地主用策略，别再无脑 legal[0]。
+  function smartFallback(room, seat, legal) {
+    if (!room || !room.state) return legal[0] || null;
+    try {
+      const view = viewOf(room, seat.playerId);
+      if (room.game === "ddz") return ddzStrategy.choose(view, legal) || legal[0] || null;
+      if (room.game === "zjh") {
+        return zjhStrategy.choose(view, legal, room.stats || {}) || legal[0] || null;
+      }
+      return legal[0] || null;
+    } catch (e) {
+      return legal[0] || null;
+    }
+  }
+
+  // 深比较：机器人直接回完整合法 action 时，不能只看 type 就放行。
+  function sameValue(a, b) {
+    if (a === b) return true;
+    if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    const ka = Object.keys(a);
+    const kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    for (const k of ka) {
+      if (!Object.prototype.hasOwnProperty.call(b, k) || !sameValue(a[k], b[k])) return false;
+    }
+    return true;
   }
 
   // 真正走一手：问 AI → 落动作 → 顺带把嘴炮发进牌桌聊天。返回是否真出了牌。
@@ -997,32 +1294,53 @@ function createServer(options) {
     let picked = null;
     let say = "";
     let why = "";
-    try {
-      const out = await aiMover(buildJob(room, seat, {
-        kind: "auto",
-        modelKey: AUTO_MODELS[seat.agentId],
-        // 人设句可在 config.json 用 ai_persona 整句覆写（支持 {seatName}/{gameName}）
-        persona: loadConfig().ai_persona,
-        chatTail: (room.chat || []).slice(-6)
-      }));
-      picked = resolveAutoMove(out && out.move, legal);
-      if (picked && out && typeof out.say === "string") say = out.say.trim();
-      if (!picked) why = (out && out.error) || ("看不懂的回答：" + JSON.stringify(out && out.move));
-    } catch (e) {
-      why = (e && e.message) || "mover 抛错";
+    if (seat.auto) {
+      // 人中途退出了：不叫模型，直接按策略托管，牌局继续走。
+      picked = smartFallback(room, seat, legal);
+    } else {
+      try {
+        const job = buildJob(room, seat, {
+          kind: seat.agentId === room.partyBotId ? "party-bot" : "auto",
+          seatId: seat.playerId,
+          modelKey: AUTO_MODELS[seat.agentId],
+          // 人设句可在 config.json 用 ai_persona 整句覆写（支持 {seatName}/{gameName}）
+          persona: loadConfig().ai_persona,
+          chatTail: (room.chat || []).slice(-6)
+        });
+        const mover = seat.agentId === room.partyBotId ? botMover : aiMover;
+        const budget = seat.agentId === room.partyBotId ? partyBotTimeoutMs : autoMoverTimeoutMs;
+        const out = await withTimeout(Promise.resolve(mover(job)), budget,
+          seat.agentId === room.partyBotId ? "MaiBot 机器人" : "AI");
+        const proposed = out && (out.action !== undefined ? out.action : out.move);
+        picked = resolveAutoMove(proposed, legal);
+        if (picked && out && typeof out.say === "string") say = out.say.trim();
+        if (!picked) why = (out && out.error) || ("看不懂的回答：" + JSON.stringify(proposed));
+      } catch (e) {
+        why = (e && e.message) || "mover 抛错";
+      }
     }
     if (!picked) {
-      // 非法 / 解析失败 / CLI 挂了 —— 兜底出第一招，闭嘴照打
+      // 非法 / 解析失败 / CLI 挂了 —— 用策略兜底，闭嘴照打
       console.warn("[cards] " + code + " " + seat.name + " 自动出牌兜底（" + why + "）");
-      picked = legal[0];
+      picked = smartFallback(room, seat, legal);
       say = "";
+    }
+    // 炸金花：模型/CLI 已经有动作，也按保守策略做一次统一校正（比牌/诈唬/赔率）。
+    if (picked && room.game === "zjh") {
+      try {
+        picked = zjhStrategy.adjust(
+          viewOf(room, seat.playerId), legal, picked, room.stats || {}
+        ) || picked;
+      } catch (e) { /* 策略异常就保留原动作 */ }
     }
 
     let out = applyCore(room, seat, picked);
     if (out.error && picked !== legal[0]) {
-      // 引擎说非法（局面对不上了）→ 再兜底一次
-      console.warn("[cards] " + code + " " + seat.name + " 这招被引擎拒了（" + out.error + "），改出第一招");
-      out = applyCore(room, seat, legal[0]);
+      // 引擎说非法（局面对不上了）→ 再按策略兜底一次，仍不行才退回第一招
+      console.warn("[cards] " + code + " " + seat.name + " 这招被引擎拒了（" + out.error + "），改走兜底");
+      let retry = smartFallback(room, seat, legal);
+      if (sameValue(retry, picked)) retry = legal[0];
+      out = applyCore(room, seat, retry);
       say = "";
     }
     if (out.error) {
@@ -1032,6 +1350,7 @@ function createServer(options) {
     if (say) pushChat(room, seat.playerId, seat.name, say.slice(0, AUTO_SAY_MAX));
     saveRoom(room);
     broadcast(room);
+    afterStateChange(room);
     return true;
   }
 
@@ -1062,6 +1381,11 @@ function createServer(options) {
   ["", "/cards"].forEach(function (prefix) {
     app.use(prefix + "/assets-theme", themeStatic);
     app.use(prefix + "/fonts", fontStatic);
+  });
+  // The group invite page opens anonymously; its API stays scoped by scopeGuard.
+  // Must precede authGate, or the invite link redirects every phone to login.
+  app.get(["/party.html", "/cards/party.html"], function (req, res) {
+    res.sendFile(path.join(publicDir, "party.html"));
   });
 
   // 认证门：cookie = owner 级；X-Internal-Key = agent 级（视同 owner）；
@@ -1178,6 +1502,16 @@ function createServer(options) {
         return next();
       }
     }
+    // 群聊分享链接的邀请只进对应的 party 房间，且只允许房间读写与出牌接口。
+    if (partyGuestsAllowed()) {
+      const pToken = req.query.invite || req.headers["x-invite-token"];
+      const pRoom = findRoomByInvite(typeof pToken === "string" ? pToken : null);
+      if (pRoom && pRoom.party) {
+        req.authLevel = "guest";
+        req.inviteRoom = pRoom.code;
+        return next();
+      }
+    }
     return deny(res, req);
   });
 
@@ -1206,20 +1540,71 @@ function createServer(options) {
 
   // 建座位（人类和 agent 共用）
   function addSeat(room, name, extra) {
+    // 有人退出后座位号会空出来，按最小可用号补，别撞已有的 pN。
+    const used = {};
+    room.seats.forEach(function (s) { used[s.playerId] = true; });
+    let n = 1;
+    while (used["p" + n]) n += 1;
     const seat = Object.assign({
-      playerId: "p" + (room.seats.length + 1),
+      playerId: "p" + n,
       playerToken: randomBytes(16).toString("hex"),
       name: name,
       color: SEAT_COLORS[room.seats.length % SEAT_COLORS.length],
-      isHost: room.seats.length === 0,
-      isAI: false
+      isHost: false,
+      isAI: false,
+      seenAt: Date.now()
     }, extra || {});
+    // 机器人永远不是房主；群里开的桌也没有人类房主，谁先坐谁都不是。
+    if (!seat.isAI) seat.isHost = room.seats.length === 0;
     room.seats.push(seat);
     return seat;
   }
 
+  // 群聊桌等的是手机用户：关掉页面又不点退出的人，座位不能一直占着。
+  // 有 SSE 连接（页面开着）或 5 分钟内有过请求的座位都留着。
+  const STALE_SEAT_MS = 5 * 60 * 1000;
+  function pruneStaleSeats(room) {
+    if (room.started) return false;
+    const now = Date.now();
+    const live = new Set();
+    const set = sseClients.get(room.code);
+    if (set) set.forEach(function (c) { if (c.playerId) live.add(c.playerId); });
+    const before = room.seats.length;
+    room.seats = room.seats.filter(function (s) {
+      if (s.isAI || live.has(s.playerId)) return true;
+      return !s.seenAt || now - s.seenAt < STALE_SEAT_MS;
+    });
+    if (room.seats.length === before) return false;
+    // 群聊桌没有房主这一说，别在清座位时又造一个出来。
+    if (!room.party) room.seats.forEach(function (s, i) { s.isHost = i === 0; });
+    if (room.agentSeats) {
+      const alive = {};
+      room.seats.forEach(function (s) { alive[s.playerId] = true; });
+      Object.keys(room.agentSeats).forEach(function (k) {
+        if (!alive[room.agentSeats[k]]) delete room.agentSeats[k];
+      });
+    }
+    return true;
+  }
+
   // 动作核心（不认识 res，自动 AI 也用它）：只推引擎和 room.state，
   // 失败返回 {error}，落盘/广播交给调用方。
+  // 炸金花对手统计：跟/加/弃/比/看，只用于 bot 的松紧判断，不改规则。
+  function bumpStat(room, playerId, action) {
+    if (!room || room.game !== "zjh" || !playerId || !action) return;
+    if (!room.stats || typeof room.stats !== "object") room.stats = {};
+    const s = room.stats[playerId] || { look: 0, call: 0, raise: 0, fold: 0, compare: 0, acts: 0 };
+    if (action.type === "look") s.look += 1;
+    else if (action.type === "fold") s.fold += 1;
+    else if (action.type === "compare") s.compare += 1;
+    else if (action.type === "bet") {
+      if (action.kind === "raise" || action.kind === "raise_allin" || action.kind === "allin") s.raise += 1;
+      else s.call += 1;
+    }
+    s.acts += 1;
+    room.stats[playerId] = s;
+  }
+
   function applyCore(room, seat, action) {
     if (!room.started || !room.state) return { error: "牌局还没开始" };
     if (!action || !action.type) return { error: "缺少动作类型" };
@@ -1233,6 +1618,7 @@ function createServer(options) {
     }
     const nextState = out && out.state ? out.state : out;
     room.state = nextState;
+    bumpStat(room, seat.playerId, action);
     return { state: nextState, events: (out && out.events) || [] };
   }
 
@@ -1245,6 +1631,7 @@ function createServer(options) {
     }
     saveRoom(room);
     broadcast(room);
+    afterStateChange(room);
     return out;
   }
 
@@ -1260,6 +1647,13 @@ function createServer(options) {
     haiku: "AI·Haiku"
   };
 
+  // 从群聊开桌时只有机器人一个固定 AI 座位；id 来自 config.json，群消息不能改。
+  function partyRoster() {
+    const roster = Object.assign({}, AI_ROSTER);
+    roster[partyBotId()] = partyBotName();
+    return roster;
+  }
+
   // 建房时勾选的 AI，等房主（第一个人类）入座后自动落座——
   // 不能在建房时就坐，否则 seats[0] 的 isHost 会落在 AI 头上。
   // 人数上限按这个游戏引擎的 meta.maxPlayers（斗地主 3 人，坐满就不再塞）。
@@ -1268,11 +1662,11 @@ function createServer(options) {
     const max = metaFor(room).maxPlayers;
     let changed = false;
     for (const agentId of room.aiInvites) {
-      if (!AI_ROSTER[agentId]) continue;
+      if (!partyRoster()[agentId]) continue;
       if (!room.agentSeats) room.agentSeats = {};
       if (seatByAgent(room, agentId)) continue;             // 幂等：已在座
       if ((room.seats || []).length >= max) break;
-      const seat = addSeat(room, AI_ROSTER[agentId], { isAI: true, agentId: agentId });
+      const seat = addSeat(room, partyRoster()[agentId], { isAI: true, agentId: agentId });
       room.agentSeats[agentId] = seat.playerId;
       changed = true;
     }
@@ -1295,14 +1689,11 @@ function createServer(options) {
       return res.status(503).json({ error: "「" + game + "」的引擎还没就绪，先玩别的" });
     }
     const name = String(body.name || "").trim().slice(0, 24) || "未命名房间";
+    const roster = partyRoster();
     const aiInvites = Array.isArray(body.ai_players)
-      ? body.ai_players.filter(function (id, i, arr) { return AI_ROSTER[id] && arr.indexOf(id) === i; })
+      ? body.ai_players.filter(function (id, i, arr) { return roster[id] && arr.indexOf(id) === i; })
       : [];
-    let code = null;
-    for (let i = 0; i < 30; i++) {
-      const c = randomCode();
-      if (!fs.existsSync(roomPath(c))) { code = c; break; }
-    }
+    const code = newRoomCode();
     if (!code) return res.status(500).json({ error: "房间号生成失败，请重试" });
     const room = {
       code: code,
@@ -1314,10 +1705,15 @@ function createServer(options) {
       seats: [],
       agentSeats: {},
       aiInvites: aiInvites,
+      partyBotId: aiInvites.length ? partyBotId() : null,
       started: false,
       state: null
     };
     saveRoom(room);
+    if (room.partyBotId && aiInvites.indexOf(partyBotId()) !== -1) {
+      seatPendingInvites(room);
+      saveRoom(room);
+    }
     res.json({
       ok: true, code: room.code, name: room.name, game: room.game,
       gameName: metaFor(room).name, rules: room.rules, inviteToken: room.inviteToken
@@ -1332,6 +1728,76 @@ function createServer(options) {
       return res.status(400).json({ error: "不认识的游戏「" + game + "」，只能是：" + GAME_KEYS.join(" / ") });
     }
     res.json({ ok: true, games: gamesCatalog(), rooms: listRooms(20, game).map(summarize) });
+  });
+
+  // 群聊开桌：只给本机 bot / 已登录房主使用，MaiBot 座位固定由服务端加。
+  // 聊天插件调用时带 X-Internal-Key；公开分享的链接只指向 party.html。
+  api.post("/party", function (req, res) {
+    if (req.authLevel === "guest") return deny(res);
+    const body = req.body || {};
+    const game = String(body.game || "uno").trim().toLowerCase();
+    if (GAME_KEYS.indexOf(game) === -1) {
+      return res.status(400).json({ error: "不认识的游戏「" + String(body.game || "") +
+        "」，只能是：" + GAME_KEYS.join(" / ") });
+    }
+    if (!engines[game]) {
+      return res.status(503).json({ error: "「" + game + "」的引擎还没就绪" });
+    }
+    const hostName = String(body.host_name || "").trim().slice(0, 16) || "群友";
+    const roomName = String(body.name || "").trim().slice(0, 24) ||
+      (hostName + "的" + metaOf(engines[game], game).name);
+    const botId = partyBotId();
+    const code = newRoomCode();
+    if (!code) return res.status(500).json({ error: "房间号生成失败，请重试" });
+
+    const room = {
+      code: code,
+      name: roomName,
+      game: game,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + PARTY_INVITE_MS,
+      inviteToken: randomBytes(16).toString("hex"),
+      // 群聊流 ID：MaiBot 插件用它把牌桌聊天/赛果写回该群的 Maisaka 上下文。
+      streamId: String(body.stream_id || "").trim().slice(0, 160) || null,
+      rules: resolveRules(game, body.rules),
+      seats: [],
+      agentSeats: {},
+      aiInvites: [],
+      partyBotId: botId,
+      party: true,
+      started: false,
+      state: null
+    };
+    // 群里发命令的人不预占座位：只落 MaiBot，真人点链接才入座。
+    const bot = addSeat(room, partyBotName(), { isAI: true, agentId: botId });
+    room.agentSeats[botId] = bot.playerId;
+    saveRoom(room);
+
+    const origin = String(req.protocol || "http") + "://" + String(req.get("host") || "127.0.0.1");
+    // 插件从内网调用时 host 是 bisca:8081，群友点不开；允许开桌方指定群友可访问的公开地址。
+    const asked = String(body.public_url || "").trim().replace(/\/+$/, "");
+    // 隧道地址每次启动都变，由穿透脚本写进 data/public_url.txt，插件不用改配置。
+    let tunneled = "";
+    try {
+      tunneled = fs.readFileSync(path.join(dataDir, "public_url.txt"), "utf8").trim().replace(/\/+$/, "");
+    } catch (e) { /* 没起隧道时没有这个文件 */ }
+    if (!/^https?:\/\/[^\s]+$/i.test(tunneled)) tunneled = "";
+    const fallback = String(tunneled || process.env.BISCA_PUBLIC_URL || origin).replace(/\/+$/, "");
+    const publicBase = /^https?:\/\/[^\s]+$/i.test(asked) ? asked : fallback;
+    const prefix = publicBase + "/cards/party.html?c=" + encodeURIComponent(code);
+    const inviteUrl = prefix + "&invite=" + encodeURIComponent(room.inviteToken);
+    res.json({
+      ok: true,
+      code: code,
+      name: room.name,
+      game: room.game,
+      gameName: metaFor(room).name,
+      partyUrl: prefix,
+      inviteUrl: inviteUrl,
+      url: inviteUrl,
+      expiresAt: room.expiresAt,
+      bot: { id: botId, name: bot.name, joined: true }
+    });
   });
 
   // 大厅要知道有哪些游戏、各自几人、有没有就绪（引擎缺席时前端好把 tab 灰掉）
@@ -1368,6 +1834,7 @@ function createServer(options) {
     }
 
     if (room.started) return res.status(400).json({ error: "牌局已开始，无法入座" });
+    if (pruneStaleSeats(room)) saveRoom(room);
     const max = metaFor(room).maxPlayers;
     if ((room.seats || []).length >= max) {
       return res.status(400).json({ error: "房间已满（最多 " + max + " 人）" });
@@ -1376,29 +1843,81 @@ function createServer(options) {
     const name = String(body.name || "").trim().slice(0, 16) || ("玩家" + (room.seats.length + 1));
     const seat = addSeat(room, name, null);
     seatPendingInvites(room);
+    // 群聊桌不设房主：人满自动开局，谁也不用点按钮。
+    if (room.party && !room.started && room.seats.length >= metaFor(room).maxPlayers) {
+      beginGame(room);
+    }
     saveRoom(room);
     broadcast(room);
     res.json({
       ok: true, code: room.code, game: room.game, playerId: seat.playerId, playerToken: seat.playerToken,
-      name: seat.name, color: seat.color, isHost: seat.isHost, rejoined: false
+      name: seat.name, color: seat.color, isHost: seat.isHost, rejoined: false,
+      started: !!room.started
     });
   });
 
-  // POST /cards/api/rooms/:code/start {playerToken} — 仅房主，人数按引擎 meta 把关
-  api.post("/rooms/:code/start", scopeGuard, function (req, res) {
+  // POST /cards/api/rooms/:code/leave {playerToken} — 主动退出。
+  // 没开局：直接腾座位；开局后：座位交给服务端按合法动作接管。
+  api.post("/rooms/:code/leave", scopeGuard, function (req, res) {
     const room = requireRoom(req, res);
     if (!room) return;
     const token = (req.body && req.body.playerToken) || "";
-    const host = (room.seats || [])[0];
-    if (!host || token !== host.playerToken) return res.status(403).json({ error: "只有房主可以开局" });
-    if (room.started) return res.status(400).json({ error: "牌局已经开始了" });
-    const engine = engineOf(room);
-    if (!engine) return res.status(503).json({ error: "「" + room.game + "」的引擎还没就绪，开不了局" });
-    const meta = metaFor(room);
-    if (room.seats.length < meta.minPlayers) {
-      return res.status(400).json({ error: "至少要 " + meta.minPlayers + " 个人才能开局" });
+    const seat = seatByToken(room, token);
+    if (!seat) return res.status(400).json({ error: "不在座上，可能已经被移出了" });
+
+    if (room.started) {
+      seat.auto = true;   // 不删座位，改由服务端出牌，牌局不会缺人卡住
+      seat.isAI = true;
+      seat.leftAt = Date.now();
+      saveRoom(room);
+      broadcast(room);
+      return res.json({ ok: true, code: room.code, takeover: true });
     }
 
+    room.seats = room.seats.filter(function (s) { return s.playerId !== seat.playerId; });
+    if (!room.party) room.seats.forEach(function (s, i) { s.isHost = i === 0; });
+    if (room.agentSeats) {
+      Object.keys(room.agentSeats).forEach(function (k) {
+        if (room.agentSeats[k] === seat.playerId) delete room.agentSeats[k];
+      });
+    }
+    const humans = room.seats.filter(function (s) { return !s.isAI; });
+    if (!humans.length && room.party) {
+      // 群聊桌没人了：直接散桌，别留个只有机器人的空房占房号。
+      room.closed = true;
+      broadcast(room);
+      const code = room.code;
+      setTimeout(function () {
+        const set = sseClients.get(code);
+        if (set) for (const c of set) { try { c.res.end(); } catch (e) { /* 已断 */ } }
+        sseClients.delete(code);
+        rooms.delete(code);
+        try { fs.rmSync(roomPath(code), { force: true }); } catch (e) { /* 没了拉倒 */ }
+      }, 300);
+      return res.json({ ok: true, code: code, roomClosed: true });
+    }
+    saveRoom(room);
+    broadcast(room);
+    res.json({ ok: true, code: room.code });
+  });
+
+  // 真正开局：手动 /start 和「人满自动开」共用。成功返回 {}，失败返回 {error,status}。
+  function beginGame(room) {
+    if (room.started) return { error: "牌局已经开始了", status: 400 };
+    const engine = engineOf(room);
+    if (!engine) return { error: "「" + room.game + "」的引擎还没就绪，开不了局", status: 503 };
+    const meta = metaFor(room);
+    if (room.seats.length < meta.minPlayers) {
+      return { error: "至少要 " + meta.minPlayers + " 个人才能开局", status: 400 };
+    }
+    // 群聊桌：3 人（含 MaiBot）只开斗地主；UNO / 炸金花要满员（4 人）才允许开局。
+    if (room.party && room.game !== "ddz" && room.seats.length < meta.maxPlayers) {
+      return {
+        error: "群聊桌「" + meta.name + "」要 " + meta.maxPlayers + " 人才能开；" +
+          "3 人（含 MaiBot）请开斗地主",
+        status: 400
+      };
+    }
     const rules = resolveRules(room.game, room.rules);
     let state;
     try {
@@ -1413,21 +1932,101 @@ function createServer(options) {
         seed: randomInt(1, 2147483647)
       });
     } catch (e) {
-      return res.status(400).json({ error: e && e.message ? e.message : "开局失败" });
+      return { error: e && e.message ? e.message : "开局失败", status: 400 };
     }
     room.started = true;
     room.startedAt = Date.now();
     room.rules = rules;
     room.state = state;
+    return {};
+  }
+
+  // POST /cards/api/rooms/:code/ai {playerToken, agentId, action} — 群聊桌补位。
+  // 只有第一个入座的真人在开局前能加/移除自动 AI（MaiBot 固定座位不能动）。
+  api.post("/rooms/:code/ai", scopeGuard, function (req, res) {
+    const room = requireRoom(req, res);
+    if (!room) return;
+    if (!room.party) return res.status(400).json({ error: "只有群聊桌需要补位" });
+    if (room.started) return res.status(400).json({ error: "牌局已经开始，不能再补位" });
+    const body = req.body || {};
+    const me = seatByToken(room, body.playerToken);
+    if (!me) return res.status(403).json({ error: "先入座才能补位" });
+    const first = (room.seats || []).find(function (s) { return !s.isAI; });
+    if (!first || first.playerId !== me.playerId) {
+      return res.status(403).json({ error: "只有第一个入座的人可以补位" });
+    }
+    const agentId = String(body.agentId || "").trim().toLowerCase();
+    const action = String(body.action || "add").trim().toLowerCase();
+    if (!agentId || agentId === room.partyBotId || !AUTO_MODELS[agentId] || !AI_ROSTER[agentId]) {
+      return res.status(400).json({ error: "这个 AI 不能补位" });
+    }
+    if (!room.agentSeats) room.agentSeats = {};
+
+    if (action === "remove") {
+      const seat = seatByAgent(room, agentId);
+      if (!seat || !seat.isAI) return res.status(400).json({ error: "这个 AI 不在桌上" });
+      room.seats = room.seats.filter(function (s) { return s.playerId !== seat.playerId; });
+      delete room.agentSeats[agentId];
+      saveRoom(room);
+      broadcast(room);
+      return res.json({ ok: true, code: room.code, started: false, removed: agentId });
+    }
+
+    if (action !== "add") return res.status(400).json({ error: "action 只能是 add / remove" });
+    if (seatByAgent(room, agentId)) return res.status(400).json({ error: "这个 AI 已经在桌上" });
+    if ((room.seats || []).length >= metaFor(room).maxPlayers) {
+      return res.status(400).json({ error: "桌子已经满了" });
+    }
+
+    const seat = addSeat(room, AI_ROSTER[agentId], { isAI: true, agentId: agentId });
+    room.agentSeats[agentId] = seat.playerId;
+    // 补满就按人满规则自动开局，和真人入座走同一条路。
+    if (room.seats.length >= metaFor(room).maxPlayers) beginGame(room);
     saveRoom(room);
     broadcast(room);
-    res.json({ ok: true, code: room.code, seq: state && state.seq });
+    afterStateChange(room);
+    res.json({
+      ok: true, code: room.code, started: !!room.started,
+      seat: { playerId: seat.playerId, name: seat.name, agentId: agentId }
+    });
+  });
+
+  // POST /cards/api/rooms/:code/start {playerToken} — 仅房主，人数按引擎 meta 把关
+  api.post("/rooms/:code/start", scopeGuard, function (req, res) {
+    const room = requireRoom(req, res);
+    if (!room) return;
+    pruneStaleSeats(room);
+    const token = (req.body && req.body.playerToken) || "";
+    const host = (room.seats || [])[0];
+    if (!host || token !== host.playerToken) return res.status(403).json({ error: "只有房主可以开局" });
+    if (host.isAI) return res.status(403).json({ error: "房间还没有人类房主" });
+    const out = beginGame(room);
+    if (out.error) return res.status(out.status || 400).json({ error: out.error });
+    saveRoom(room);
+    broadcast(room);
+    // ZJH 的首轮叫注也直接点按：客户端读 legal，不让人手输入 "call"。
+    // 群聊机器人的座位一直由服务端驱动，不需要任何群消息触发。
+    res.json({ ok: true, code: room.code, seq: room.state && room.state.seq });
   });
 
   // GET /cards/api/rooms/:code/state?token= → viewFor 脱敏视图（无 token=观战）
   api.get("/rooms/:code/state", scopeGuard, function (req, res) {
     const room = requireRoom(req, res);
     if (!room) return;
+    // 刷新时状态请求可能先于 SSE 到达；轮到的虚拟座位不能等人先开电视。
+    if (room.started && room.state) {
+      scheduleAuto(room);
+      scheduleExternalWake(room);
+    }
+    // The invite page needs the lobby before anyone has a seat; it receives no hand data.
+    const inviteToken = typeof req.query.invite === "string" ? req.query.invite : null;
+    if (!req.query.token && req.authLevel === "guest" && (room.party || guestsAllowed()) &&
+        inviteToken && inviteToken === room.inviteToken) {
+      res.set("Cache-Control", "no-store");
+      const payload = statePayload(room, null);
+      payload.ok = true;
+      return res.json(payload);
+    }
     const seat = seatByToken(room, typeof req.query.token === "string" ? req.query.token : null);
     const payload = statePayload(room, seat ? seat.playerId : null);
     payload.ok = true;
@@ -1532,6 +2131,7 @@ function createServer(options) {
     if (!privileged && (!host || token !== host.playerToken)) {
       return res.status(403).json({ error: "只有房主可以关闭房间" });
     }
+    if (!privileged && host.isAI) return res.status(403).json({ error: "只有房主可以关闭房间" });
     room.closed = true;
     broadcast(room); // 各视角推 closed:true,前端据此退回大厅
     const code = room.code;
@@ -1729,6 +2329,7 @@ function createServer(options) {
     cleanupRooms: cleanupRooms,
     signCookie: signCookie,
     config: config,
+    partyBot: function () { return { id: partyBotId(), name: partyBotName() }; },
     get port() {
       const a = server.address();
       return a && typeof a === "object" ? a.port : null;

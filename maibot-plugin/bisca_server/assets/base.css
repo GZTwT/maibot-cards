@@ -1,0 +1,198 @@
+/* Bisca texture utilities — base.css
+ * Consumes the CSS custom properties written by boot.js (the token engine).
+ * Self-hosted fonts live in /fonts/. No CDN, no external requests.
+ */
+
+/* ---------- Fonts (self-hosted, /fonts/*.woff2) ---------- */
+
+/* Manrope — sans body, 400/500/600/700/800 */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Manrope-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Manrope-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Manrope-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Manrope-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/Manrope-800.woff2') format('woff2');
+}
+
+/* Newsreader — serif toggle, regular + italic, 400/600 */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Newsreader-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Newsreader-400i.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Newsreader-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Newsreader-600i.woff2') format('woff2');
+}
+
+/* Cormorant Garamond — wordmark fallback only, 600 italic */
+@font-face {
+  font-family: 'Cormorant Garamond';
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/CormorantGaramond-600i.woff2') format('woff2');
+}
+
+/* ---------- Body font stacks ---------- */
+
+body {
+  font-family: 'Manrope', -apple-system, 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+}
+[data-font="serif"] body,
+[data-font="serif"] {
+  font-family: 'Newsreader', Georgia, 'Songti SC', serif;
+}
+
+/* ---------- Aurora wash (full-bleed fixed background layer) ---------- */
+
+.cn-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: var(--bg);
+  background-image: var(--aurora);
+  filter: blur(6px);
+  animation: auroraDrift 26s ease-in-out infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+
+@keyframes auroraDrift {
+  0%   { transform: scale(1.05) translate3d(0, 0, 0); }
+  50%  { transform: scale(1.16) translate3d(-1.5%, 1.5%, 0); }
+  100% { transform: scale(1.05) translate3d(0, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-aurora { animation: none; }
+}
+
+/* ---------- Frosted glass ---------- */
+
+.cn-glass {
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+}
+
+/* ---------- Glass card (glow hairline + drop shadow) ---------- */
+
+.cn-card {
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur, 20px)) saturate(1.2);
+  border: 1px solid var(--glow-border);
+  box-shadow: var(--glow-shadow), 0 8px 30px rgba(0, 0, 0, .34);
+  border-radius: 20px;
+}
+
+/* ---------- Metallic hairline ring ----------
+ * Host must be position:relative; the ring is a masked ::before so it frames
+ * without blocking any backdrop-filter behind it. */
+
+.cn-metal-ring {
+  position: relative;
+}
+.cn-metal-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1.5px;
+  background: var(--metal-grad);
+  border-radius: inherit;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ---------- Small generic pieces ---------- */
+
+.cn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  color: var(--text-mute);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.cn-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* ── 全站壁纸(boot.js 读到壁纸地址后置 data-wall + --cn-wall)──
+ * 清晰原图(壁纸替代晕染,禁掉晕染的 blur/漂移动画,否则壁纸会跟着糊跟着晃)
+ * + --chat-scrim 压字渐变。
+ * 页面自带的背景层级在其上,自动优先。 */
+html[data-wall] .cn-aurora {
+  filter: none;
+  animation: none;
+  background-image: none;
+}
+html[data-wall] .cn-aurora::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--chat-scrim), var(--cn-wall);
+  background-size: cover;
+  background-position: center;
+}

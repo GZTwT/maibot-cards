@@ -1,0 +1,222 @@
+/* Bisca 棋牌室 · 炸金花专属样式
+ * 通用件（按钮/弹层/座位条骨架/聊天/计分板/总榜）全在 cards.css，这里**只写炸金花自己的东西**：
+ * 筹码池、座位卡上的筹码/状态徽标、暗牌牌背 + 看牌翻面、牌面、下注动作条、摊牌结算卡。
+ * **没有任何裸色值**：一切颜色走主题 token（红花色 --danger / 黑花色 --text-strong），换主题自动跟。
+ * 手机优先：一切按 375px 排。
+ */
+
+:root {
+  /* 语义别名，全部指回主题 token —— 想改牌面观感只动这三行 */
+  --zj-face: var(--surface-3);
+  --zj-face-line: var(--border-soft);
+  --zj-red: var(--danger);
+}
+
+/* ═════════ 场面中央：筹码池 ═════════ */
+
+.zj-pot {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 16px 4px;
+}
+.zj-pot .ic { display: flex; color: var(--accent); filter: drop-shadow(0 0 10px var(--accent-wash)); }
+.zj-pot .num {
+  font-size: 34px; font-weight: 800; line-height: 1;
+  color: var(--text-strong); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.zj-pot .lbl {
+  font-size: 10px; font-weight: 700; letter-spacing: .2em;
+  color: var(--text-faint); align-self: flex-end; padding-bottom: 3px;
+}
+
+.zj-money { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.zj-money .cell {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 3px 10px; border-radius: 99px;
+  border: 1px solid var(--border-faint); background: var(--surface-2);
+}
+.zj-money .cell i { font-style: normal; font-size: 10.5px; color: var(--text-faint); }
+.zj-money .cell b {
+  font-size: 13px; font-weight: 800; color: var(--text-strong); font-variant-numeric: tabular-nums;
+}
+.zj-money #r-callcell { border-color: var(--accent-line); background: var(--accent-wash); }
+.zj-money #r-callcell b { color: var(--accent); }
+
+/* ═════════ 座位卡上的炸金花件 ═════════ */
+
+.cd-seat .zj-cic { display: flex; color: var(--accent); flex: none; }
+.zj-dealer {
+  flex: none; font-size: 9.5px; font-weight: 800; line-height: 1;
+  padding: 3px 5px; border-radius: 6px;
+  color: var(--accent-on); background: var(--accent-grad);
+}
+.zj-stag {
+  display: inline-flex; align-items: center; gap: 3px; flex: none;
+  font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 99px;
+  border: 1px solid var(--border-soft); color: var(--text-faint); background: var(--surface-2);
+}
+.zj-stag svg { flex: none; }
+.zj-stag.is-blind { color: var(--text-mute); }
+.zj-stag.is-open { color: var(--ink); border-color: var(--ink); background: var(--ink-wash); }
+.zj-stag.is-hot { color: var(--accent); border-color: var(--accent-line); background: var(--accent-wash); }
+
+/* ═════════ 牌（纯 CSS，无图片）═════════ */
+
+.zj-card {
+  position: relative; display: block;
+  width: 100%; height: 100%; padding: 5px 6px;
+  border-radius: 10px;
+  background: var(--zj-face);
+  border: 1px solid var(--zj-face-line);
+  box-shadow: inset 0 1px 0 var(--border-soft), 0 3px 10px rgb(0 0 0 / .34);
+  color: var(--text-strong); text-align: left;
+}
+.zj-card .r { display: block; font-size: 21px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+.zj-card .s { display: block; font-size: 14px; line-height: 1.1; margin-top: 1px; }
+.zj-card .c { position: absolute; right: 6px; bottom: 5px; font-size: 27px; line-height: 1; opacity: .38; }
+.zj-card.is-tone-red { color: var(--zj-red); }
+.zj-card.is-tone-black { color: var(--text-strong); }
+
+/* 小号牌（摊牌结算卡里用） */
+.zj-card--sm {
+  width: 34px; height: 48px; padding: 3px 4px; border-radius: 7px; flex: none;
+  box-shadow: 0 2px 6px rgb(0 0 0 / .3);
+}
+.zj-card--sm .r { font-size: 13px; }
+.zj-card--sm .s { font-size: 10px; }
+.zj-card--sm .c { display: none; }
+
+/* 牌背：磨砂底 + 线框菱格纹样（自画 SVG，零图片） */
+.zj-card--back {
+  padding: 0; color: var(--accent);
+  background:
+    radial-gradient(circle at 50% 34%, var(--accent-wash), transparent 66%),
+    linear-gradient(155deg, var(--surface-3), var(--surface-2));
+  border-color: var(--glow-border);
+  box-shadow: inset 0 0 16px var(--accent-wash), 0 3px 10px rgb(0 0 0 / .34);
+}
+.zj-card--back svg { display: block; width: 100%; height: 100%; opacity: .78; }
+
+/* ═════════ 我的三张牌：翻面 ═════════ */
+
+.zj-handzone { padding: 6px 0 2px; }
+.zj-hand-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 4px 14px 0;
+}
+.zj-hand-head #r-mine {
+  font-size: 11.5px; color: var(--text-mute); display: flex; align-items: center; gap: 5px;
+}
+.zj-hand-head #r-mine b { color: var(--text-strong); font-size: 13px; font-variant-numeric: tabular-nums; }
+.zj-hand-head .hint {
+  font-size: 11.5px; color: var(--accent); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.zj-hand-head .hint.is-bad { color: var(--danger); }
+
+.zj-hand {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 10px 14px 6px; min-height: 116px;
+}
+.zj-hand-empty { font-size: 12px; color: var(--text-faint); }
+
+/* 翻面：背面在前，正面预转 180°，容器 .is-open 就翻过来 */
+.zj-slot {
+  flex: none; width: 74px; height: 104px;
+  perspective: 780px;
+  animation: zjDeal .34s ease backwards; animation-delay: calc(var(--i) * 70ms);
+}
+.zj-flip {
+  position: relative; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform .52s cubic-bezier(.3, .8, .3, 1);
+  transition-delay: calc(var(--i) * 90ms);
+}
+.zj-slot.is-open .zj-flip { transform: rotateY(180deg); }
+.zj-face {
+  position: absolute; inset: 0;
+  -webkit-backface-visibility: hidden; backface-visibility: hidden;
+}
+.zj-face--front { transform: rotateY(180deg); }
+@keyframes zjDeal { from { opacity: 0; transform: translateY(24px) rotate(5deg); } }
+
+/* ═════════ 动作条 ═════════ */
+
+/* 五个按钮在 375px 上排两三行：看牌 / 跟注 独占一行，加注·比牌·弃牌 并排 */
+.zj-acts { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.zj-acts .cd-btn { flex: 1 1 28%; min-width: 92px; }
+.zj-acts .cd-btn.zj-full { flex: 1 1 100%; }
+.zj-acts .cd-actbar-hint { flex: 1 1 100%; }
+.zj-half {
+  font-style: normal; font-size: 10.5px; font-weight: 700;
+  padding: 2px 7px; border-radius: 99px;
+  background: color-mix(in srgb, var(--accent-on) 22%, transparent);
+}
+.cd-btn--primary .zj-half { color: var(--accent-on); }
+
+/* 加注档位 */
+.zj-tiers { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.zj-tier { justify-content: space-between; width: 100%; }
+.zj-tier b { font-size: 14px; font-weight: 700; color: var(--text-strong); }
+.zj-tier i {
+  font-style: normal; font-size: 11.5px; color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
+.zj-raise .cd-field-row { margin-top: 14px; }
+
+/* 比牌选人 */
+.zj-targets { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.zj-target { justify-content: space-between; width: 100%; }
+.zj-target b { font-size: 14px; font-weight: 700; color: var(--text-strong); }
+.zj-target i { font-style: normal; font-size: 11.5px; color: var(--text-faint); }
+
+/* ═════════ 摊牌结算卡 ═════════ */
+
+.cd-modal.zj-show { max-width: 350px; }
+.zj-show .cd-eyebrow { display: block; }
+.zj-show h2 { margin-top: 4px; font-size: 21px; }
+.zj-show-list { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 4px; }
+.zj-show-row {
+  padding: 9px 11px; border-radius: 13px;
+  background: var(--surface-2); border: 1px solid var(--border-faint);
+  animation: zjShowIn .4s cubic-bezier(.2, .9, .3, 1.2) backwards;
+  animation-delay: calc(var(--i) * 130ms);
+}
+.zj-show-row.is-win { border-color: var(--accent-line); background: var(--accent-wash); }
+.zj-show-row.is-me { box-shadow: inset 0 0 0 1px var(--ink); }
+.zj-show-row .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.zj-show-row .nm {
+  font-size: 13.5px; font-weight: 700; color: var(--text-strong);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.zj-show-row .gain {
+  flex: none; font-size: 14px; font-weight: 800; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.zj-show-row .gain.is-none { color: var(--text-faint); font-weight: 600; }
+.zj-show-row .cards { display: flex; gap: 5px; margin-top: 7px; }
+.zj-show-row .lbl { font-size: 11.5px; color: var(--text-dim); margin-top: 6px; }
+.zj-show-foot { font-size: 11.5px; color: var(--text-faint); margin-top: 6px; }
+@keyframes zjShowIn { from { opacity: 0; transform: translateX(-18px) scale(.95); } }
+
+/* ═════════ 无障碍 / 矮屏 ═════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  /* 翻面直接切过去，不转 */
+  .zj-flip { transition: none; }
+  .zj-slot, .zj-show-row { animation: none; }
+}
+
+/* 矮屏（iPhone SE 竖向紧）：牌小一号，池底数字收一收 */
+@media (max-height: 700px) {
+  .zj-slot { width: 62px; height: 88px; }
+  .zj-hand { min-height: 98px; padding-top: 6px; gap: 8px; }
+  .zj-card .r { font-size: 18px; }
+  .zj-card .c { font-size: 22px; }
+  .zj-pot { padding-top: 2px; }
+  .zj-pot .num { font-size: 28px; }
+}
+
+@media (min-width: 900px) {
+  .zj-acts { justify-content: center; }
+  .zj-acts .cd-btn { flex: none; min-width: 140px; }
+  .zj-acts .cd-btn.zj-full { flex: none; min-width: 220px; }
+}
